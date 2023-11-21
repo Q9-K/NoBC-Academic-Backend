@@ -5,7 +5,7 @@ import sys
 import gzip
 from tqdm import tqdm
 from datetime import datetime
-from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested
+from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Double
 from elasticsearch.helpers import parallel_bulk
 
 
@@ -88,21 +88,21 @@ def run(client, file_name):
 
 if __name__ == "__main__":
     cl = connections.create_connection(hosts=['localhost'])
-    ScholarDocument.init()
+    SourceDocument.init()
     print('日志路径', os.path.join(os.path.dirname(os.path.abspath(__file__)), "SourceImport.log"))
 
     with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "SourceImport.log"), 'w', encoding='utf-8') as file:
         print("Start insert to ElasticSearch at {}".format(datetime.now()))
-        # original_stdout = sys.stdout
-        # sys.stdout = file
+        original_stdout = sys.stdout
+        sys.stdout = file
         root_path = 'J:\\openalex-snapshot\\data\\sources'
         # 获取所有子文件夹
-        sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
+        sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))][0:10]
         for sub_folder in tqdm(sub_folders):
             folder_path = os.path.join(root_path, sub_folder)
             files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
             for zip_file in files:
                 file_name = os.path.join(folder_path, zip_file)
                 run(cl, file_name)
-        # sys.stdout = original_stdout
+        sys.stdout = original_stdout
         print("Finished insert to Elasticsearch at{}".format(datetime.now()))
