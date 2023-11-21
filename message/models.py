@@ -1,6 +1,7 @@
 from django.db import models
 from user.models import User
-from scholar.models import Scholar
+from author.models import Author
+
 
 # Create your models here.
 class Message(models.Model):
@@ -9,21 +10,20 @@ class Message(models.Model):
     receiver = models.ForeignKey(to='user.User', related_name='msg', on_delete=models.CASCADE)
     create_time = models.DateTimeField(auto_created=True)
 
+    def to_string(self):
+        return {
+            'id': self.id,
+            'title': self.title,
+            'content': self.content,
+            'receiver': self.receiver.name,
+            'create_time': self.create_time
+        }
+
+
 class Certification(models.Model):
-    user = models.ForeignKey(to='user.User', related_name='ca', on_delete=models.CASCADE)
-    to_scholar1 = models.ForeignKey(to='scholar.Scholar1', related_name='ca', null=True, on_delete=models.CASCADE)
-    to_scholar2 = models.ForeignKey(to='scholar.Scholar2', related_name='ca', null=True, on_delete=models.CASCADE)
-    to_scholar3 = models.ForeignKey(to='scholar.Scholar3', related_name='ca', null=True, on_delete=models.CASCADE)
-    to_scholar4 = models.ForeignKey(to='scholar.Scholar4', related_name='ca', null=True, on_delete=models.CASCADE)
-    to_scholar5 = models.ForeignKey(to='scholar.Scholar5', related_name='ca', null=True, on_delete=models.CASCADE)
-    to_scholar6 = models.ForeignKey(to='scholar.Scholar6', related_name='ca', null=True, on_delete=models.CASCADE)
-    to_scholar7 = models.ForeignKey(to='scholar.Scholar7', related_name='ca', null=True, on_delete=models.CASCADE)
-    to_scholar8 = models.ForeignKey(to='scholar.Scholar8', related_name='ca', null=True, on_delete=models.CASCADE)
-    to_scholar9 = models.ForeignKey(to='scholar.Scholar9', related_name='ca', null=True, on_delete=models.CASCADE)
-    to_scholar10 = models.ForeignKey(to='scholar.Scholar10', related_name='ca', null=True, on_delete=models.CASCADE)
-    to_scholar11 = models.ForeignKey(to='scholar.Scholar11', related_name='ca', null=True, on_delete=models.CASCADE)
-    to_scholar12 = models.ForeignKey(to='scholar.Scholar12', related_name='ca', null=True, on_delete=models.CASCADE)
-    to_scholar13 = models.ForeignKey(to='scholar.Scholar13', related_name='ca', null=True, on_delete=models.CASCADE)
+    user = models.ForeignKey(to='user.User', related_name='certification', on_delete=models.CASCADE)
+    # 只记录需要认证的学者信息
+    scholar = models.TextField(default='')
     # 状态可选项
     PENDING = 'PD'
     PASSED = 'PS'
@@ -36,22 +36,23 @@ class Certification(models.Model):
     status = models.CharField(max_length=2, choices=STATUS_IN_CHOICE, default=PENDING)
     result_msg = models.TextField(default='')
     idcard_img_url = models.CharField(max_length=50, default='')
+    date_time = models.DateTimeField(auto_now_add=True)
+
+    def to_string(self):
+        return {
+            'id': self.id,
+            'user': self.user.name,
+            'author': self.scholar,
+            'status': self.get_status_display(),
+            'result_msg': self.result_msg,
+            'idcard_img_url': self.idcard_img_url,
+            'date_time': self.date_time
+        }
+
 
 class Complaint(models.Model):
-    user = models.ForeignKey(to='user.User', related_name='cp', on_delete=models.CASCADE)
-    to_scholar1 = models.ForeignKey(to='scholar.Scholar1', null=True, on_delete=models.CASCADE)
-    to_scholar2 = models.ForeignKey(to='scholar.Scholar2', null=True, on_delete=models.CASCADE)
-    to_scholar3 = models.ForeignKey(to='scholar.Scholar3', null=True, on_delete=models.CASCADE)
-    to_scholar4 = models.ForeignKey(to='scholar.Scholar4', null=True, on_delete=models.CASCADE)
-    to_scholar5 = models.ForeignKey(to='scholar.Scholar5', null=True, on_delete=models.CASCADE)
-    to_scholar6 = models.ForeignKey(to='scholar.Scholar6', null=True, on_delete=models.CASCADE)
-    to_scholar7 = models.ForeignKey(to='scholar.Scholar7', null=True, on_delete=models.CASCADE)
-    to_scholar8 = models.ForeignKey(to='scholar.Scholar8', null=True, on_delete=models.CASCADE)
-    to_scholar9 = models.ForeignKey(to='scholar.Scholar9', null=True, on_delete=models.CASCADE)
-    to_scholar10 = models.ForeignKey(to='scholar.Scholar10', null=True, on_delete=models.CASCADE)
-    to_scholar11 = models.ForeignKey(to='scholar.Scholar11', null=True, on_delete=models.CASCADE)
-    to_scholar12 = models.ForeignKey(to='scholar.Scholar12', null=True, on_delete=models.CASCADE)
-    to_scholar13 = models.ForeignKey(to='scholar.Scholar13', null=True, on_delete=models.CASCADE)
+    user = models.ForeignKey(to='user.User', related_name='complaint', on_delete=models.CASCADE)
+    to_scholar = models.TextField(default='')
     # 状态可选项
     PENDING = 'PD'
     PASSED = 'PS'
@@ -64,3 +65,15 @@ class Complaint(models.Model):
     status = models.CharField(max_length=2, choices=STATUS_IN_CHOICE, default=PENDING)
     result_msg = models.TextField(default='')
     complaint_content = models.TextField()
+    date_time = models.DateTimeField(auto_now_add=True)
+
+    def to_string(self):
+        return {
+            'id': self.id,
+            'user': self.user.name,
+            'to_scholar': self.to_scholar,
+            'status': self.get_status_display(),
+            'result_msg': self.result_msg,
+            'complaint_content': self.complaint_content,
+            'date_time': self.date_time
+        }

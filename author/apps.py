@@ -1,9 +1,9 @@
 from django.apps import AppConfig
 from elasticsearch_dsl import connections
 
-class PaperConfig(AppConfig):
+class ScholarConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
-    name = "paper"
+    name = "author"
 
     def ready(self):
-        connections.create_connection(hosts=['localhost'])
+        connections.create_connection(hosts=['http://100.99.200.37:9200'])

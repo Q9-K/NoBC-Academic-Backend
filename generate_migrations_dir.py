@@ -1,6 +1,6 @@
 import os
 
-app_list = ['manager', 'message', 'paper', 'scholar', 'user']
+app_list = ['manager', 'message', 'work', 'author', 'user']
 for app in app_list:
     path = os.path.join(os.getcwd(), app, 'migrations')
     # 创建迁移文件夹
