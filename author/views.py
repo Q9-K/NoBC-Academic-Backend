@@ -38,23 +38,23 @@ import json
 #     })
 
 
-import time
-from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Search
-from elasticsearch.helpers import bulk, parallel_bulk
-cl = connections.create_connection()
-def search_view2(request):
-    start_time = time.time()
-    text = request.GET.get('text')
-    s = Search(using=cl, index='scholar').filter('match', name=text)
-    response = s.execute()
-    results = []
-    for hit in response:
-        results.append(hit.to_dict())
-    end_time = time.time()
-    return JsonResponse({
-        'count': len(results),
-        'results': results,
-        'time': end_time - start_time
-    })
+# import time
+# from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Search
+# from elasticsearch.helpers import bulk, parallel_bulk
+# cl = connections.create_connection()
+# def search_view2(request):
+#     start_time = time.time()
+#     text = request.GET.get('text')
+#     s = Search(using=cl, index='author').filter('match', name=text)
+#     response = s.execute()
+#     results = []
+#     for hit in response:
+#         results.append(hit.to_dict())
+#     end_time = time.time()
+#     return JsonResponse({
+#         'count': len(results),
+#         'results': results,
+#         'time': end_time - start_time
+#     })
 
 
