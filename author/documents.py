@@ -6,7 +6,7 @@ from .models import Scholar1, Scholar2, Scholar
 @registry.register_document
 class ScholarDocument(Document):
     class Index:
-        name = 'scholar'
+        name = 'author'
         settings = {
             'number_of_shards': 5,
             'number_of_replicas': 0

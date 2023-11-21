@@ -117,10 +117,11 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "NoBC",
     "user",
-    'paper',
-    'scholar',
+    'work',
+    'author',
     'manager',
     'message',
+    'institution',
     'django_elasticsearch_dsl',
 ]
 
@@ -186,31 +187,6 @@ CACHES = {
 CELERY_BROKER_URL = 'pyamqp://rabbit:123456@localhost//'
 CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/1'
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
