@@ -1,0 +1,15 @@
+name: deploy
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+    steps:
+        - name: setup
+          run: sudo apt install sshpass
+
+        - name: pull and reload
+          run: |
+              sshpass -p ${{secrets.PASSWORD}} ssh -o StrictHostKeyChecking=no ${{secrets.USER}}@${{secrets.IP}} "source /etc/profile;conda activate nobc;cd /home/q9k/NoBC_BACKEND;git pull;pip install -r requirements.txt;killall -9 uwsgi;uwsgi --ini uwsgi.ini;"
