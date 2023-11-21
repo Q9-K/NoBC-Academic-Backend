@@ -35,7 +35,7 @@ with open("J:/mag_authors_0/mag_authors_2.txt","r") as fp:
         temp = json.dumps(new_data)
         new_jsonfile.write(temp)
         new_jsonfile.write('\n')
-        # old_data = {'id': 'scholar.scholar.' + str(id1), 'django_ct': 'scholar.scholar', 'django_id': str(id1)}
+        # old_data = {'id': 'author.author.' + str(id1), 'django_ct': 'author.author', 'django_id': str(id1)}
         if len(json_data['name']) == 0 or json_data['name'] is None:
             print(json_data)
         old_data = {'name': json_data['name']}

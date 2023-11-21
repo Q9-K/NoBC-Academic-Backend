@@ -18,6 +18,7 @@ from django.urls import path, include
 
 urlpatterns = [
     path('user/', include('user.urls')),
-    path('scholar/', include('scholar.urls')),
-    path('paper/', include('paper.urls')),
+    path('author/', include('author.urls')),
+    path('work/', include('work.urls')),
+    path('manager/', include('manager.urls')),
 ]
