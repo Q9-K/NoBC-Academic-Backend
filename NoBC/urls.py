@@ -21,4 +21,6 @@ urlpatterns = [
     path('author/', include('author.urls')),
     path('work/', include('work.urls')),
     path('manager/', include('manager.urls')),
+    path('source/', include('source.urls')),
+    path('concept/', include('concept.urls')),
 ]

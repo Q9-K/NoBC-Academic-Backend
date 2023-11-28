@@ -12,7 +12,7 @@ class User(models.Model):
     histories = models.ManyToManyField(to='work.Work', through='History', related_name='user_history')
     favorites = models.ManyToManyField(to='work.Work', related_name='user_favorite')
     scholar_identity = models.ForeignKey(to='author.Author', on_delete=models.CASCADE, null=True)
-    concept_focus = models.ManyToManyField(to='work.Concept', related_name='user')
+    concept_focus = models.ManyToManyField(to='concept.Concept', related_name='user')
     salt = models.CharField(max_length=4, default='')
     follows = models.ManyToManyField(to='author.Author', related_name='fans')
 

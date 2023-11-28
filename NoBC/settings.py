@@ -122,10 +122,19 @@ INSTALLED_APPS = [
     'manager',
     'message',
     'institution',
+    'source',
+    'concept',
     # 'django_elasticsearch_dsl',
 ]
 
-
+ELASTICSEARCH_DSL = {
+    'default': {
+        'hosts': '127.0.0.1:9200',
+        'timeout': 60,
+    }
+}
+ELASTICSEARCH_DSL_SIGNAL_PROCESSOR = 'django_elasticsearch_dsl.signals.RealTimeSignalProcessor'
+ELASTICSEARCH_DSL_PARALLEL = True
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
 
