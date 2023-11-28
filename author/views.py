@@ -2,8 +2,6 @@ from django.http import JsonResponse
 from elasticsearch_dsl import Search
 from elasticsearch_dsl.connections import connections
 
-from .tasks import sort_and_cache_results
-import json
 
 # def search_view(request):
 #     #从json中获取数据
@@ -58,6 +56,7 @@ import json
 
 elasticsearch_connection = connections.get_connection()
 
+
 # 作者名搜索
 def common_search(request):
     author_name = request.GET.get('author_name')
@@ -78,13 +77,35 @@ def get_works(request):
     # 使用id還是display_name?
     author_name = request.GET.get('author_name')
     # keyword能不能match？？
-    # search = Search(using=elasticsearch_connection, index='work').filter('match', display_name=author_name)
-    search_results = search.execute()
-    results = []
-    for hit in search_results:
-        results.append(hit.to_dict())
-    return JsonResponse({
-        'count': len(results),
-        'results': results
-    })
+    query_body = {
+        "query": {
+            "match": {
+                "authorships": {
+                    "query": {
+                        'nested': {
+                            'path': 'authorships',
+                            'query': {
+                                'match': {
+                                    'author': {
+                                        'nested': {
+                                            'path': 'author',
+                                            'query': {
+                                                'match': {
+                                                    'display_name': author_name
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    # search = Search(using=elasticsearch_connection, index='wor9k').filter('match', display_name=author_name)
+    # search = Search()
+    res = elasticsearch_connection.search(index='work', body=query_body)
 
+    print(res)
