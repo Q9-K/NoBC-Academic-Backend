@@ -2,7 +2,6 @@ from django.http import JsonResponse
 from elasticsearch_dsl import Search
 from elasticsearch_dsl.connections import connections
 
-
 # def search_view(request):
 #     #从json中获取数据
 #     data = json.loads(request.body)
@@ -76,27 +75,17 @@ def get_works(request):
     # 從work index裡面找
     # 使用id還是display_name?
     author_name = request.GET.get('author_name')
-    # keyword能不能match？？
+
     query_body = {
         "query": {
-            "match": {
-                "authorships": {
-                    "query": {
-                        'nested': {
-                            'path': 'authorships',
-                            'query': {
-                                'match': {
-                                    'author': {
-                                        'nested': {
-                                            'path': 'author',
-                                            'query': {
-                                                'match': {
-                                                    'display_name': author_name
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
+            'nested': {
+                'path': 'authorships',
+                'query': {
+                    'nested': {
+                        'path': 'authorships.author',
+                        'query': {
+                            'match': {
+                                'authorships.author.display_name': author_name
                             }
                         }
                     }
@@ -104,8 +93,8 @@ def get_works(request):
             }
         }
     }
-    # search = Search(using=elasticsearch_connection, index='wor9k').filter('match', display_name=author_name)
-    # search = Search()
     res = elasticsearch_connection.search(index='work', body=query_body)
 
-    print(res)
+    return JsonResponse({
+        'result': res
+    })
