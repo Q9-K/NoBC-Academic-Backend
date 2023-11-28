@@ -7,6 +7,7 @@ import threading
 
 elasticsearch_connection = connections.get_connection()
 
+
 def common_search(request):
     text = request.GET.get('text')
     search = Search(using=elasticsearch_connection, index='work').filter('match', abstract=text)
