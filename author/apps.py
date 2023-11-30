@@ -5,6 +5,3 @@ from config import ELAS_HOST
 class ScholarConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "author"
-
-    def ready(self):
-        connections.create_connection(hosts=[ELAS_HOST])

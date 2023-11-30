@@ -58,7 +58,6 @@ CORS_ALLOW_HEADERS = (
     'Pragma',
 )
 
-
 # Application definition
 
 
@@ -173,7 +172,6 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = BUAA_MAIL_USER
 EMAIL_HOST_PASSWORD = BUAA_MAIL_TOKEN
 
-
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
@@ -187,3 +185,9 @@ CACHES = {
 CELERY_BROKER_URL = 'pyamqp://rabbit:123456@localhost//'
 CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/1'
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+from elasticsearch_dsl import connections
+
+connections.configure(
+    default={'host': 'localhost'}
+)

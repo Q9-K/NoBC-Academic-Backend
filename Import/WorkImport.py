@@ -4,6 +4,7 @@ import json
 import time
 import gzip
 from tqdm import tqdm
+from pprint import pprint
 from datetime import datetime
 from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Date, Float, Boolean
 from elasticsearch.helpers import parallel_bulk
@@ -22,15 +23,26 @@ class WorkDocument(Document):
                 }
             ),
             "author_position": Keyword(),
-            "countries": Keyword(multi=True)
+            "countries": Keyword()
         }
     )
-    open_access = Nested(
+    best_oa_location = Nested(
         properties={
             "is_oa": Boolean(),
-            "oa_status": Keyword(),
-            "oa_url": Keyword(),
-            "any_repository_has_fulltext": Boolean()
+            "landing_page_url": Keyword(),
+            "pdf_url": Keyword(),
+            "source": Nested(
+                properties={
+                    "id": Keyword(),
+                    "display_name": Keyword(),
+                    "issn_l": Keyword(),
+                    "issn": Keyword(),
+                    "host_organization": Keyword(),
+                    "type": Keyword(),
+                }
+            ),
+            "license": Keyword(),
+            "version": Keyword(),
         })
     cited_by_count = Integer()
     concepts = Nested(
@@ -63,9 +75,7 @@ class WorkDocument(Document):
         settings = {
             'number_of_shards': 5,
             'number_of_replicas': 0,
-            'index.mapping.nested_objects.limit': 500000
         }
-
 
 def run(client, file_name):
     with gzip.open(file_name, 'rt', encoding='utf-8') as file:
@@ -75,7 +85,7 @@ def run(client, file_name):
         start_time = time.perf_counter()
         for line in file:
             data = json.loads(line)
-            properties_to_extract = ["id", "title", "authorships", "open_access",
+            properties_to_extract = ["id", "title", "authorships", "best_oa_location",
                                      "cited_by_count", "concepts", "counts_by_year",
                                      "created_date", "language", "type", "publication_date",
                                      "referenced_works", "related_works"]
@@ -125,7 +135,7 @@ if __name__ == "__main__":
         sys.stdout = file
         root_path = 'J:\\openalex-snapshot\\data\\works'
         # 获取所有子文件夹
-        sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))][0:10]
+        sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))][40:60]
         for sub_folder in tqdm(sub_folders):
             folder_path = os.path.join(root_path, sub_folder)
             files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
