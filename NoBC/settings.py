@@ -121,7 +121,9 @@ INSTALLED_APPS = [
     'manager',
     'message',
     'institution',
-    'django_elasticsearch_dsl',
+    'source',
+    'concept',
+    # 'django_elasticsearch_dsl',
 ]
 
 ELASTICSEARCH_DSL = {

@@ -1,10 +1,6 @@
-import hashlib
-
-# from celery.result import AsyncResult
 from django.http import JsonResponse
-from django.core.cache import cache
-from .tasks import sort_and_cache_results
-import json
+from elasticsearch_dsl import Search
+from elasticsearch_dsl.connections import connections
 
 # def search_view(request):
 #     #从json中获取数据
@@ -57,4 +53,48 @@ import json
 #         'time': end_time - start_time
 #     })
 
+elasticsearch_connection = connections.get_connection()
 
+
+# 作者名搜索
+def common_search(request):
+    author_name = request.GET.get('author_name')
+    search = Search(using=elasticsearch_connection, index='author').filter('match', display_name=author_name)
+    search_results = search.execute()
+    results = []
+    for hit in search_results:
+        results.append(hit.to_dict())
+    return JsonResponse({
+        'count': len(results),
+        'results': results
+    })
+
+
+# 列出作者的所有作品
+def get_works(request):
+    # 從work index裡面找
+    # 使用id還是display_name?
+    author_name = request.GET.get('author_name')
+
+    query_body = {
+        "query": {
+            'nested': {
+                'path': 'authorships',
+                'query': {
+                    'nested': {
+                        'path': 'authorships.author',
+                        'query': {
+                            'match': {
+                                'authorships.author.display_name': author_name
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    res = elasticsearch_connection.search(index='work', body=query_body)
+
+    return JsonResponse({
+        'result': res
+    })

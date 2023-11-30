@@ -10,6 +10,7 @@ elasticsearch_connection = connections.get_connection()
 INDEX_NAME = 'work'
 
 
+
 def common_search(request):
     request = request.GET
     text = request.get('text')
