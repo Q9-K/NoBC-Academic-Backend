@@ -92,8 +92,8 @@ if __name__ == "__main__":
 
     with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "SourceImport.log"), 'w', encoding='utf-8') as file:
         print("Start insert to ElasticSearch at {}".format(datetime.now()))
-        original_stdout = sys.stdout
-        sys.stdout = file
+        # original_stdout = sys.stdout
+        # sys.stdout = file
         root_path = '/data/openalex-snapshot/data/sources'
         # 获取所有子文件夹
         sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))][0:10]
@@ -103,5 +103,5 @@ if __name__ == "__main__":
             for zip_file in files:
                 file_name = os.path.join(folder_path, zip_file)
                 run(cl, file_name)
-        sys.stdout = original_stdout
+        # sys.stdout = original_stdout
         print("Finished insert to Elasticsearch at{}".format(datetime.now()))
