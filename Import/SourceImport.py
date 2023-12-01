@@ -40,7 +40,7 @@ class SourceDocument(Document):
         name = 'source'
         settings = {
             'number_of_shards': 5,
-            'number_of_replicas': 0,
+            'number_of_replicas': 1,
         }
 
 
@@ -94,7 +94,7 @@ if __name__ == "__main__":
         print("Start insert to ElasticSearch at {}".format(datetime.now()))
         original_stdout = sys.stdout
         sys.stdout = file
-        root_path = 'J:\\openalex-snapshot\\data\\sources'
+        root_path = '/data/openalex-snapshot/data/sources'
         # 获取所有子文件夹
         sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))][0:10]
         for sub_folder in tqdm(sub_folders):

@@ -1,15 +1,15 @@
 version: "3.5"
 services:
   elasticsearch:
-    image: elasticsearch:7.9.0
-    container_name: elastic
+    image: elasticsearch:7.17.13
+    container_name: elasticsearch
     restart: on-failure
     environment:
       - "discovery.type=single-node"
     volumes:
-      - /j/elasticsearch/config:/usr/share/elasticsearch/config
-      - /j/elasticsearch/data:/usr/share/elasticsearch/data
-      - /j/elasticsearch/plugins:/usr/share/elasticsearch/plugins
+      - /data/elasticsearch/config:/usr/share/elasticsearch/config
+      - /data/elasticsearch/data:/usr/share/elasticsearch/data
+      - /data/elasticsearch/plugins:/usr/share/elasticsearch/plugins
     ports:
       - 9200:9200
 
@@ -31,9 +31,9 @@ services:
     environment:
       - "MYSQL_ROOT_PASSWORD=root"
     volumes:
-      - /j/mysql/conf:/etc/mysql/conf.d
-      - /j/mysql/logs:/var/log/mysql
-      - /j/mysql/data:/var/lib/mysql
+      - /data/mysql/conf:/etc/mysql/conf.d
+      - /data/mysql/logs:/var/log/mysql
+      - /data/mysql/data:/var/lib/mysql
     ports:
       - 3306:3306
 
