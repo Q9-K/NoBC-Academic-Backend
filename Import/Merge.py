@@ -47,7 +47,7 @@ def run(client, file_name, index_name):
 if __name__ == "__main__":
     cl = connections.create_connection(hosts=['localhost'])
     print("Start merge data at {}".format(datetime.now()))
-    root_path = 'J:/openalex-snapshot/data/merged_ids'
+    root_path = '/data/openalex-snapshot/data/merged_ids'
     sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
     for sub_folder in tqdm(sub_folders):
         folder_path = os.path.join(root_path, sub_folder)
