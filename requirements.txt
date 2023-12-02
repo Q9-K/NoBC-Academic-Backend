@@ -5,3 +5,10 @@ mysqlclient==2.1.0
 PyJWT==2.8.0
 django-redis==5.3.0
 redis==5.0.0
+celery~=5.3.5
+tqdm~=4.66.1
+elasticsearch~=7.17.9
+ujson~=5.8.0
+pymysql~=1.1.0
+requests~=2.31.0
+names~=0.3.0
