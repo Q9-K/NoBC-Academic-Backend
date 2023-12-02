@@ -88,7 +88,7 @@ if __name__ == "__main__":
     print("Start insert to ElasticSearch at {}".format(datetime.now()))
     # original_stdout = sys.stdout
     # sys.stdout = file
-    root_path = '/data/openalex-snapshot/data/authors'
+    root_path = '/data/openalex-snapshot/data/concepts'
     # 获取所有子文件夹
     sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
     for sub_folder in tqdm(sub_folders):
