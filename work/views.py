@@ -18,10 +18,7 @@ def common_search(request):
     time_from = request.get('time_from')
     time_to = request.get('time_to')
     journal = request.get('journal')
-    match = Q('nested', path='best_oa_location',
-              query=Q('nested', path='best_oa_location__source', query=Q('match', best_oa_location__source__id='https://openalex.org/S4306400744')))
-    # match = Match(best_oa_location__source__id = 'https://openalex.org/S4306400194')
-    search = Search(using=elasticsearch_connection, index='work').query(match)
+    search = Search(using=elasticsearch_connection, index='work').query("match", abstract=text)
     search_results = search.execute()
     print(search.to_dict())
     results = []
