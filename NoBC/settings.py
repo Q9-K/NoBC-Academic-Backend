@@ -191,5 +191,5 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 from elasticsearch_dsl import connections
 
 connections.configure(
-    default={'host': 'localhost'}
+    default={'host': '123.60.99.8'}
 )
