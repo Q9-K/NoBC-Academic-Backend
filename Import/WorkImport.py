@@ -93,9 +93,10 @@ def run(client, file_name):
             if data.get('id') and data.get('title'):
                 i += 1
                 data['abstract'] = None
-                positions = [(word, pos) for word, pos_list in abstract.items() for pos in pos_list]
-                positions.sort(key=lambda x: x[1])
-                data['abstract'] = ' '.join([word for word, _ in positions])
+                if abstract:
+                    positions = [(word, pos) for word, pos_list in abstract.items() for pos in pos_list]
+                    positions.sort(key=lambda x: x[1])
+                    data['abstract'] = ' '.join([word for word, _ in positions])
                 data_list.append({
                     "_op_type": "index",
                     "_index": "work",
