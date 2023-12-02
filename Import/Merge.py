@@ -2,12 +2,11 @@ import os
 import json
 import time
 import gzip
-import csv
 from tqdm import tqdm
 from datetime import datetime
 from elasticsearch_dsl import connections, Search
 from elasticsearch.helpers import parallel_bulk
-from itertools import islice
+import pandas as pd
 
 def run(client, file_name, index_name):
     with gzip.open(file_name, 'rt', encoding='utf-8') as file:
@@ -15,11 +14,11 @@ def run(client, file_name, index_name):
         data_list = []
         print("start handling file {}".format(file_name))
         start_time = time.perf_counter()
-        csv_reader = csv.reader(file)
-        csv_reader = islice(csv_reader, 1, None)
-        for row in csv_reader:
+        csv_reader = pd.read_csv(file_name, compression='gzip')
+        print(csv_reader.shape[0])
+        for index, row in csv_reader.iterrows():
             i += 1
-            from_id = "https://openalex.org/"+row[1]
+            from_id = "https://openalex.org/"+row['id']
             data_list.append(from_id)
             if i % 5000 == 0:
                 start_time1 = time.time()
@@ -30,7 +29,7 @@ def run(client, file_name, index_name):
                         }
                     }
                 }
-                search = Search(using=cl, index=index_name).update_from_dict(query)
+                search = Search(using=client, index=index_name).update_from_dict(query)
                 response = search.delete()
                 if response.deleted > 0:
                     print(f"Successfully deleted {response.deleted} documents.")
@@ -46,7 +45,7 @@ def run(client, file_name, index_name):
                     }
                 }
             }
-            search = Search(using=cl, index=index_name).update_from_dict(query)
+            search = Search(using=client, index=index_name).update_from_dict(query)
             response = search.delete()
             if response.deleted > 0:
                 print(f"Successfully deleted {response.deleted} documents.")
