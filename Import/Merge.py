@@ -5,7 +5,7 @@ import gzip
 import csv
 from tqdm import tqdm
 from datetime import datetime
-from elasticsearch_dsl import connections
+from elasticsearch_dsl import connections, Search
 from elasticsearch.helpers import parallel_bulk
 from itertools import islice
 
@@ -20,27 +20,36 @@ def run(client, file_name, index_name):
         for row in csv_reader:
             i += 1
             from_id = "https://openalex.org/"+row[1]
-            data_list.append(
-                {
-                    "_op_type": "delete",
-                    "_index": index_name,
-                    "_id": from_id
-                }
-            )
+            data_list.append(from_id)
             if i % 5000 == 0:
                 start_time1 = time.time()
-                for ok, response in parallel_bulk(client=client, actions=data_list, chunk_size=5000, ignore_status=404):
-                    if ok:
-                        print(response)
+                query = {
+                    "query": {
+                        "terms": {
+                            "_id": data_list
+                        }
+                    }
+                }
+                search = Search(using=cl, index=index_name).update_from_dict(query)
+                response = search.delete()
+                if response.deleted > 0:
+                    print(f"Successfully deleted {response.deleted} documents.")
                 data_list = []
                 end_time1 = time.time()
                 print("circle {} process time = {}s".format(int(i / 5000), end_time1 - start_time1))
-                exit(0)
         if data_list:
             start_time1 = time.time()
-            for ok, response in parallel_bulk(client=client, actions=data_list, chunk_size=5000, ignore_status=404):
-                if ok:
-                    print(response)
+            query = {
+                "query": {
+                    "terms": {
+                        "_id": data_list
+                    }
+                }
+            }
+            search = Search(using=cl, index=index_name).update_from_dict(query)
+            response = search.delete()
+            if response.deleted > 0:
+                print(f"Successfully deleted {response.deleted} documents.")
             data_list = []
             end_time1 = time.time()
             print("circle {} process time = {}s".format(int(i / 5000), end_time1 - start_time1))
