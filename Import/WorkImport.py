@@ -108,7 +108,7 @@ def run(file_name):
                     "_index": "work",
                     "_source": data
                 })
-            if i % 200000 == 0:
+            if i == 50000:
                 for ok, response in parallel_bulk(client=cl, actions=data_list, chunk_size=5000, thread_count=16):
                     if not ok:
                         print(response)
@@ -122,7 +122,7 @@ def run(file_name):
 
 def process_files(folder_path):
     files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
-    with ThreadPoolExecutor(max_workers=8) as executor:
+    with ThreadPoolExecutor(max_workers=16) as executor:
         futures = [executor.submit(run, os.path.join(folder_path, file)) for file in files]
         for future in futures:
             future.result()
@@ -134,7 +134,7 @@ if __name__ == "__main__":
 
     start_time = datetime.now()
     print("Start insert to ElasticSearch at {}".format(start_time))
-    root_path = '/data/openalex-snapshot/data/works'
+    root_path = 'J:/openalex-snapshot/data/works'
     # 获取所有子文件夹
     sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
 
