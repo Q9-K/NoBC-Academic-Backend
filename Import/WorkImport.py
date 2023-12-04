@@ -108,14 +108,14 @@ def run(file_name):
                     "_index": "work",
                     "_source": data
                 })
-            if i % 50000 == 0:
-                for ok, response in parallel_bulk(client=cl, actions=data_list, chunk_size=5000, queue_size=30, thread_count=8):
+            if i % 200000 == 0:
+                for ok, response in parallel_bulk(client=cl, actions=data_list, chunk_size=5000, thread_count=16):
                     if not ok:
                         print(response)
                 data_list = []
         if len(data_list) > 0:
             i += 1
-            for ok, response in parallel_bulk(client=cl, actions=data_list, chunk_size=5000, queue_size=30, thread_count=8):
+            for ok, response in parallel_bulk(client=cl, actions=data_list, chunk_size=5000, thread_count=16):
                 if not ok:
                     print(response)
 
