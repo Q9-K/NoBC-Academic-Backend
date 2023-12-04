@@ -119,7 +119,7 @@ def run(file_name):
 
 def process_files(folder_path):
     files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
-    for file in tqdm(files):
+    for file in tqdm(files, desc="File status"):
         run(os.path.join(folder_path, file))
 
 
@@ -133,7 +133,7 @@ if __name__ == "__main__":
     # 获取所有子文件夹
     sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
 
-    for sub_folder in tqdm(sub_folders):
+    for sub_folder in tqdm(sub_folders, desc="Folder status"):
         folder_path = os.path.join(root_path, sub_folder)
         process_files(folder_path)
     end_time = datetime.now()
