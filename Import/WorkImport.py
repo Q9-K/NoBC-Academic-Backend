@@ -87,7 +87,8 @@ class WorkDocument(Document):
 
 def generate_actions(file_name):
     with gzip.open(file_name, 'rt', encoding='utf-8') as file:
-        for line in file:
+        lines = file.readlines()
+        for line in lines:
             data = json.loads(line)
             # 在这里进行适当的数据处理，构建文档
             properties_to_extract = ["id", "title", "authorships", "best_oa_location",
@@ -130,7 +131,7 @@ if __name__ == "__main__":
 
     start_time = datetime.now()
     print("Start insert to ElasticSearch at {}".format(start_time))
-    root_path = '/data/openalex-snapshot/data/works'
+    root_path = 'J:/openalex-snapshot/data/works'
     # 获取所有子文件夹
     sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
 
