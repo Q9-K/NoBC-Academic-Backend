@@ -101,7 +101,7 @@ def generate_actions(file_name):
                 positions.sort(key=lambda x: x[1])
                 data['abstract'] = ' '.join([word for word, _ in positions])
             document = {
-                '_index': 'your_index_name',
+                '_index': 'work',
                 '_op_type': 'index',
                 '_source': data
             }
