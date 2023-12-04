@@ -7,7 +7,6 @@ from tqdm import tqdm
 from datetime import datetime
 from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Date, Float, Boolean
 from elasticsearch.helpers import parallel_bulk
-from concurrent.futures import ThreadPoolExecutor
 
 class WorkDocument(Document):
     id = Keyword()
@@ -132,14 +131,12 @@ if __name__ == "__main__":
     root_path = '/data/openalex-snapshot/data/works'
     # 获取所有子文件夹
     sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
-    with ThreadPoolExecutor() as executor:
-        for sub_folder in tqdm(sub_folders):
-            folder_path = os.path.join(root_path, sub_folder)
-            files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
-            executor.map(run, files)
-            # for zip_file in tqdm(files):
-            #     file_name = os.path.join(folder_path, zip_file)
-            #     run(cl, file_name)
+    for sub_folder in tqdm(sub_folders):
+        folder_path = os.path.join(root_path, sub_folder)
+        files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
+        for zip_file in tqdm(files):
+            file_name = os.path.join(folder_path, zip_file)
+            run(cl, file_name)
     end_time = datetime.now()
     print("Finished insert to Elasticsearch at{}".format(end_time))
     print("cost time {}".format(end_time-start_time))
