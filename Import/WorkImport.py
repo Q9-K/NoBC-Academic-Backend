@@ -6,7 +6,7 @@ import gzip
 from tqdm import tqdm
 from datetime import datetime
 from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Date, Float, Boolean
-from elasticsearch.helpers import parallel_bulk
+from elasticsearch.helpers import parallel_bulk, bulk
 from concurrent.futures import ThreadPoolExecutor
 
 
@@ -109,14 +109,14 @@ def run(client, file_name):
                     "_source": data
                 })
             if i % 5000 == 0:
-                for ok, response in parallel_bulk(client=client, actions=data_list, chunk_size=5000, queue_size=8, thread_count=8):
+                for ok, response in bulk(client=client, actions=data_list):
                     if not ok:
                         print(response)
                         exit(-1)
                 data_list = []
         if len(data_list) > 0:
             i += 1
-            for ok, response in parallel_bulk(client=client, actions=data_list, chunk_size=5000, queue_size=8, thread_count=8):
+            for ok, response in bulk(client=client, actions=data_list):
                 if not ok:
                     print(response)
                     exit(-1)
