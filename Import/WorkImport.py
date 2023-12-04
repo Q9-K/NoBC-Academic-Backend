@@ -112,7 +112,7 @@ def generate_actions(file_name):
 
 def run(file_name):
     actions = generate_actions(file_name)
-    for success, info in parallel_bulk(client=cl, actions=actions, thread_count=8, chunk_size=5000, queue_size=30):
+    for success, info in parallel_bulk(client=cl, actions=actions, thread_count=8, chunk_size=3000, queue_size=20):
         if not success:
             print(f'Failed to index document: {info}')
 
