@@ -107,14 +107,14 @@ def run(client, file_name):
                     "_source": data
                 })
             if i % 5000 == 0:
-                for ok, response in parallel_bulk(client=client, actions=data_list, chunk_size=5000, queue_size=300, thread_count=8):
+                for ok, response in parallel_bulk(client=client, actions=data_list, chunk_size=5000, queue_size=10, thread_count=8):
                     if not ok:
                         print(response)
                         exit(-1)
                 data_list = []
         if len(data_list) > 0:
             i += 1
-            for ok, response in parallel_bulk(client=client, actions=data_list, chunk_size=5000, queue_size=300, thread_count=8):
+            for ok, response in parallel_bulk(client=client, actions=data_list, chunk_size=5000, queue_size=10, thread_count=8):
                 if not ok:
                     print(response)
                     exit(-1)
