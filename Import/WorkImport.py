@@ -80,7 +80,8 @@ class WorkDocument(Document):
             'index.mapping.nested_objects.limit': 500000,
             'index.refresh_interval': '120s',
             'index.translog.durability': 'async',
-            'index.translog.flush_threshold_size': '512mb'
+            'index.translog.sync_interal': '120s',
+            'index.translog.flush_threshold_size': '1024mb'
         }
 
 
@@ -110,7 +111,7 @@ def generate_actions(file_name):
 
 def run(file_name):
     actions = generate_actions(file_name)
-    for success, info in parallel_bulk(client=cl, actions=actions, thread_count=8, chunk_size=5000, queue_size=50):
+    for success, info in parallel_bulk(client=cl, actions=actions, thread_count=8, chunk_size=8000, queue_size=20):
         if not success:
             print(f'Failed to index document: {info}')
 
