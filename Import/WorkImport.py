@@ -134,7 +134,7 @@ if __name__ == "__main__":
 
     start_time = datetime.now()
     print("Start insert to ElasticSearch at {}".format(start_time))
-    root_path = 'J:/openalex-snapshot/data/works'
+    root_path = '/data/openalex-snapshot/data/works'
     # 获取所有子文件夹
     sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
 
