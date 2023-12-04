@@ -110,14 +110,14 @@ def generate_actions(file_name):
 
 def run(file_name):
     actions = generate_actions(file_name)
-    for success, info in parallel_bulk(client=cl, actions=actions, thread_count=4, chunk_size=5000, queue_size=50):
+    for success, info in parallel_bulk(client=cl, actions=actions, thread_count=8, chunk_size=5000, queue_size=50):
         if not success:
             print(f'Failed to index document: {info}')
 
 
 def process_files(folder_path):
     files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    with ThreadPoolExecutor() as executor:
         futures = [executor.submit(run, os.path.join(folder_path, file)) for file in files]
         for future in futures:
             future.result()
