@@ -109,12 +109,12 @@ def run(file_name):
                     "_source": data
                 })
             if i == 50000:
+                i = 0
                 for ok, response in parallel_bulk(client=cl, actions=data_list, chunk_size=5000, thread_count=16):
                     if not ok:
                         print(response)
                 data_list = []
         if len(data_list) > 0:
-            i += 1
             for ok, response in parallel_bulk(client=cl, actions=data_list, chunk_size=5000, thread_count=16):
                 if not ok:
                     print(response)
