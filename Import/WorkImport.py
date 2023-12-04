@@ -75,7 +75,7 @@ class WorkDocument(Document):
     class Index:
         name = 'work'
         settings = {
-            'number_of_shards': 20,
+            'number_of_shards': 16,
             'number_of_replicas': 0,
             'index.mapping.nested_objects.limit': 500000,
             'index.refresh_interval': '120s',
@@ -84,45 +84,40 @@ class WorkDocument(Document):
         }
 
 
-def run(file_name):
+def generate_actions(file_name):
     with gzip.open(file_name, 'rt', encoding='utf-8') as file:
-        i = 0
-        data_list = []
         for line in file:
             data = json.loads(line)
+            # 在这里进行适当的数据处理，构建文档
             properties_to_extract = ["id", "title", "authorships", "best_oa_location",
                                      "cited_by_count", "concepts", "counts_by_year",
                                      "created_date", "language", "type", "publication_date",
                                      "referenced_works", "related_works"]
             abstract = data.get('abstract_inverted_index')
             data = {key: data[key] for key in properties_to_extract}
-            if data.get('id'):
-                i += 1
-                data['abstract'] = None
-                if abstract:
-                    positions = [(word, pos) for word, pos_list in abstract.items() for pos in pos_list]
-                    positions.sort(key=lambda x: x[1])
-                    data['abstract'] = ' '.join([word for word, _ in positions])
-                data_list.append({
-                    "_op_type": "index",
-                    "_index": "work",
-                    "_source": data
-                })
-            if i == 50000:
-                i = 0
-                for ok, response in parallel_bulk(client=cl, actions=data_list, chunk_size=5000, thread_count=16):
-                    if not ok:
-                        print(response)
-                data_list = []
-        if len(data_list) > 0:
-            for ok, response in parallel_bulk(client=cl, actions=data_list, chunk_size=5000, thread_count=16):
-                if not ok:
-                    print(response)
+            data['abstract'] = None
+            if abstract:
+                positions = [(word, pos) for word, pos_list in abstract.items() for pos in pos_list]
+                positions.sort(key=lambda x: x[1])
+                data['abstract'] = ' '.join([word for word, _ in positions])
+            document = {
+                '_index': 'your_index_name',
+                '_op_type': 'index',
+                '_source': data
+            }
+            yield document
+
+
+def run(file_name):
+    actions = generate_actions(file_name)
+    for success, info in parallel_bulk(client=cl, actions=actions, thread_count=4, chunk_size=1000):
+        if not success:
+            print(f'Failed to index document: {info}')
 
 
 def process_files(folder_path):
     files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
-    with ThreadPoolExecutor(max_workers=16) as executor:
+    with ThreadPoolExecutor(max_workers=8) as executor:
         futures = [executor.submit(run, os.path.join(folder_path, file)) for file in files]
         for future in futures:
             future.result()
