@@ -80,7 +80,7 @@ class WorkDocument(Document):
             'index.mapping.nested_objects.limit': 500000,
             'index.refresh_interval': '120s',
             'index.translog.durability': 'async',
-            'index.translog.sync_interal': '120s',
+            'index.translog.sync_interval': '120s',
             'index.translog.flush_threshold_size': '1024mb'
         }
 
