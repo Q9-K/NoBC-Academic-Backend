@@ -7,6 +7,8 @@ from tqdm import tqdm
 from datetime import datetime
 from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Date, Float, Boolean
 from elasticsearch.helpers import parallel_bulk
+from concurrent.futures import ThreadPoolExecutor
+
 
 class WorkDocument(Document):
     id = Keyword()
@@ -68,7 +70,7 @@ class WorkDocument(Document):
     abstract = Text()
 
     class Index:
-        name = 'work_test_parallel'
+        name = 'work'
         settings = {
             'number_of_shards': 20,
             'number_of_replicas': 0,
@@ -107,19 +109,27 @@ def run(client, file_name):
                     "_source": data
                 })
             if i % 5000 == 0:
-                for ok, response in parallel_bulk(client=client, actions=data_list, chunk_size=5000, queue_size=10, thread_count=8):
+                for ok, response in parallel_bulk(client=client, actions=data_list, chunk_size=5000, queue_size=8, thread_count=8):
                     if not ok:
                         print(response)
                         exit(-1)
                 data_list = []
         if len(data_list) > 0:
             i += 1
-            for ok, response in parallel_bulk(client=client, actions=data_list, chunk_size=5000, queue_size=10, thread_count=8):
+            for ok, response in parallel_bulk(client=client, actions=data_list, chunk_size=5000, queue_size=8, thread_count=8):
                 if not ok:
                     print(response)
                     exit(-1)
         end_time = time.time()
         print("finished indexing file {} process time= {} min, end at {}".format(file_name, (end_time-start_time)/60, datetime.now()))
+
+
+def process_files(folder_path):
+    files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futures = [executor.submit(run, cl, os.path.join(folder_path, file)) for file in files]
+        for future in futures:
+            future.result()
 
 
 if __name__ == "__main__":
@@ -128,15 +138,21 @@ if __name__ == "__main__":
 
     start_time = datetime.now()
     print("Start insert to ElasticSearch at {}".format(start_time))
-    root_path = '/data/openalex-snapshot/data/works'
+    root_path = 'J:/openalex-snapshot/data/works'
     # 获取所有子文件夹
     sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
-    for sub_folder in tqdm(sub_folders):
-        folder_path = os.path.join(root_path, sub_folder)
-        files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
-        for zip_file in tqdm(files):
-            file_name = os.path.join(folder_path, zip_file)
-            run(cl, file_name)
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futures = [executor.submit(process_files, os.path.join(root_path, sub_folder)) for sub_folder in sub_folders]
+        for future in futures:
+            future.result()
+
+    # for sub_folder in tqdm(sub_folders):
+    #     folder_path = os.path.join(root_path, sub_folder)
+    #     files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
+    #     for zip_file in tqdm(files):
+    #         file_name = os.path.join(folder_path, zip_file)
+    #         run(cl, file_name)
     end_time = datetime.now()
     print("Finished insert to Elasticsearch at{}".format(end_time))
     print("cost time {}".format(end_time-start_time))
