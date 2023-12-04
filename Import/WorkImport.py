@@ -78,7 +78,7 @@ class WorkDocument(Document):
             'number_of_shards': 16,
             'number_of_replicas': 0,
             'index.mapping.nested_objects.limit': 500000,
-            'index.refresh_interval': '120s',
+            'index.refresh_interval': -1,
             'index.translog.durability': 'async',
             'index.translog.sync_interval': '120s',
             'index.translog.flush_threshold_size': '1024mb'
