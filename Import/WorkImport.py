@@ -10,6 +10,9 @@ from elasticsearch.helpers import parallel_bulk, bulk
 from concurrent.futures import ThreadPoolExecutor
 
 
+cl = connections.create_connection(hosts=['localhost'])
+
+
 class WorkDocument(Document):
     id = Keyword()
     title = Text()
@@ -81,12 +84,10 @@ class WorkDocument(Document):
         }
 
 
-def run(client, file_name):
+def run(file_name):
     with gzip.open(file_name, 'rt', encoding='utf-8') as file:
         i = 0
         data_list = []
-        print("start indexing file {}".format(file_name))
-        start_time = time.time()
         for line in file:
             data = json.loads(line)
             properties_to_extract = ["id", "title", "authorships", "best_oa_location",
@@ -95,7 +96,7 @@ def run(client, file_name):
                                      "referenced_works", "related_works"]
             abstract = data.get('abstract_inverted_index')
             data = {key: data[key] for key in properties_to_extract}
-            if data.get('id') and data.get('title'):
+            if data.get('id'):
                 i += 1
                 data['abstract'] = None
                 if abstract:
@@ -105,54 +106,41 @@ def run(client, file_name):
                 data_list.append({
                     "_op_type": "index",
                     "_index": "work",
-                    "_id": data.get('id'),
                     "_source": data
                 })
-            if i % 5000 == 0:
-                for ok, response in bulk(client=client, actions=data_list):
+            if i % 100000 == 0:
+                for ok, response in parallel_bulk(client=cl, actions=data_list, chunk_size=5000, queue_size=300, thread_count=8):
                     if not ok:
                         print(response)
-                        exit(-1)
                 data_list = []
         if len(data_list) > 0:
             i += 1
-            for ok, response in bulk(client=client, actions=data_list):
+            for ok, response in parallel_bulk(client=cl, actions=data_list, chunk_size=5000, queue_size=300, thread_count=8):
                 if not ok:
                     print(response)
-                    exit(-1)
-        end_time = time.time()
-        print("finished indexing file {} process time= {} min, end at {}".format(file_name, (end_time-start_time)/60, datetime.now()))
 
 
 def process_files(folder_path):
     files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
     with ThreadPoolExecutor(max_workers=8) as executor:
-        futures = [executor.submit(run, cl, os.path.join(folder_path, file)) for file in files]
+        futures = [executor.submit(run, os.path.join(folder_path, file)) for file in files]
         for future in futures:
             future.result()
 
 
 if __name__ == "__main__":
-    cl = connections.create_connection(hosts=['localhost'])
+
     WorkDocument.init()
 
     start_time = datetime.now()
     print("Start insert to ElasticSearch at {}".format(start_time))
-    root_path = '/data/openalex-snapshot/data/works'
+    root_path = 'J:/openalex-snapshot/data/works'
     # 获取所有子文件夹
     sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
 
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        futures = [executor.submit(process_files, os.path.join(root_path, sub_folder)) for sub_folder in sub_folders]
-        for future in futures:
-            future.result()
-
-    # for sub_folder in tqdm(sub_folders):
-    #     folder_path = os.path.join(root_path, sub_folder)
-    #     files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
-    #     for zip_file in tqdm(files):
-    #         file_name = os.path.join(folder_path, zip_file)
-    #         run(cl, file_name)
+    for sub_folder in tqdm(sub_folders):
+        folder_path = os.path.join(root_path, sub_folder)
+        process_files(folder_path)
     end_time = datetime.now()
     print("Finished insert to Elasticsearch at{}".format(end_time))
     print("cost time {}".format(end_time-start_time))
