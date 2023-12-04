@@ -81,7 +81,7 @@ class WorkDocument(Document):
             'index.refresh_interval': -1,
             'index.translog.durability': 'async',
             'index.translog.sync_interval': '120s',
-            'index.translog.flush_threshold_size': '1024mb'
+            'index.translog.flush_threshold_size': '512mb'
         }
 
 
@@ -112,7 +112,7 @@ def generate_actions(file_name):
 
 def run(file_name):
     actions = generate_actions(file_name)
-    for success, info in parallel_bulk(client=cl, actions=actions, thread_count=8, chunk_size=4000, queue_size=12):
+    for success, info in parallel_bulk(client=cl, actions=actions, thread_count=8, chunk_size=5000, queue_size=12):
         if not success:
             print(f'Failed to index document: {info}')
 
