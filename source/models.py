@@ -13,3 +13,4 @@ class Source(models.Model):
             'display_name': self.display_name,
             'views': self.views
         }
+
