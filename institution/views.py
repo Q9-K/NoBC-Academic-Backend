@@ -13,12 +13,12 @@ ES_NAME = 'institution'
 ES_CONN = connections.create_connection(alias=ES_NAME, hosts=[ELAS_HOST], timeout=20)
 
 
-def pagination(search, request):
+def pagination(search, request) -> Search:
     """
     分页查询,将基础查询语句进行分页处理,返回具有分页功能的查询语句
     :param request: 请求对象
     :param search: Search对象
-    :return: 查询语句
+    :return: Search对象
     """
     size = int(request.GET.get('size', 10))
     last_sort = request.GET.getlist('last_sort', None)
@@ -38,6 +38,25 @@ def pagination(search, request):
     return ret
 
 
+def get_return_data(search: Search, name: str) -> dict:
+    """
+    获取返回数据
+    :param name: 返回数据的名称
+    :param search: Search对象
+    :return: 返回数据data
+    """
+    ret = search.execute().to_dict()['hits']['hits']
+    data = []
+    for ele in ret:
+        dic = ele['_source']
+        dic['sort'] = ele['sort']
+        data.append(dic)
+    return_data = dict()
+    return_data['total'] = search.count()
+    return_data[name] = data
+    return return_data
+
+
 def getInstitutionList(request):
     """
     获取机构列表
@@ -53,15 +72,7 @@ def getInstitutionList(request):
         search = Search(using=ES_CONN, index='institution').query(Q('match_all')).sort('id')
         # 不需要after,使用(from, size)查询
         pagination_search = pagination(search, request)
-        for ele in pagination_search.execute().to_dict()['hits']['hits']:
-            dic = ele['_source']
-            dic['sort'] = ele['sort']
-            institutions.append(dic)
-        search: Search
-        total = search.count()
-        data = dict()
-        data['total'] = total
-        data['institutions'] = institutions
+        data = get_return_data(pagination_search, 'institutions')
         return response(SUCCESS, '查询成功', data)
     else:
         return response(METHOD_ERROR, '请求方式错误', error=True)
@@ -100,19 +111,10 @@ def getInstitutionByKeyword(request):
         # 获取参数,使用search_after分页,需要获取:
         # 每页大小size,上一页最后一个数据的sort字段(若为"",默认为第一页)
         keyword = request.GET.get('keyword', "")
-        institutions = []
         # 默认id升序
         search = Search(using=ES_CONN, index='institution').query('match', display_name=keyword).sort('id')
         pagination_search = pagination(search, request)
-        for ele in pagination_search.execute().to_dict()['hits']['hits']:
-            dic = ele['_source']
-            dic['sort'] = ele['sort']
-            institutions.append(dic)
-        search: Search
-        total = search.count()
-        data = dict()
-        data['total'] = total
-        data['institutions'] = institutions
-        return response(SUCCESS, '查询成功', institutions)
+        data = get_return_data(pagination_search, 'institutions')
+        return response(SUCCESS, '查询成功', data)
     else:
         return response(METHOD_ERROR, '请求方式错误', error=True)
