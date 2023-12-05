@@ -109,7 +109,7 @@ def run(file_name):
                 '_source': data
             }
             actions.append(document)
-            if index == 200000:
+            if index == 40000:
                 index = 0
                 for success, info in parallel_bulk(client=cl, actions=actions, thread_count=8, queue_size=8, chunk_size=5000):
                     if not success:
