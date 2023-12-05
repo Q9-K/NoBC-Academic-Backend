@@ -1,14 +1,11 @@
 import os
-import sys
-import json
-import time
 import gzip
 from tqdm import tqdm
 from datetime import datetime
 from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Date, Float, Boolean
-from elasticsearch.helpers import parallel_bulk
+from elasticsearch.helpers import parallel_bulk, streaming_bulk
 import jsonlines
-import gc
+from concurrent.futures import ThreadPoolExecutor
 
 
 cl = connections.create_connection(hosts=['localhost'])
@@ -78,7 +75,7 @@ class WorkDocument(Document):
         settings = {
             'number_of_shards': 16,
             'number_of_replicas': 0,
-            'index.mapping.nested_objects.limit': 500000,
+            'index.mapping.nested_objects.limit': 200000,
             'index.refresh_interval': -1,
             'index.translog.durability': 'async',
             'index.translog.sync_interval': '300s',
@@ -112,16 +109,17 @@ def generate_actions(file_name):
 
 def run(file_name):
     actions = generate_actions(file_name)
-    for success, info in parallel_bulk(client=cl, actions=actions, queue_size=10, chunk_size=2000):
+    for success, info in streaming_bulk(client=cl, actions=actions, chunk_size=2000, max_retries=2):
         if not success:
             print(f'Failed to index document: {info}')
-    gc.collect()
 
 
 def process_files(folder_path):
     files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
-    for file in tqdm(files, desc="File status"):
-        run(os.path.join(folder_path, file))
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futures = [executor.submit(run, os.path.join(folder_path, file)) for file in files]
+        for future in futures:
+            future.result()
 
 
 if __name__ == "__main__":
