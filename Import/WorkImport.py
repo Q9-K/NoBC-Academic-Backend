@@ -88,8 +88,7 @@ class WorkDocument(Document):
 def generate_actions(file_name):
     with gzip.open(file_name, 'rt', encoding='utf-8') as file:
         with jsonlines.Reader(file) as lines:
-            for line in lines:
-                data = json.loads(line)
+            for data in lines:
                 # 在这里进行适当的数据处理，构建文档
                 properties_to_extract = ["id", "title", "authorships", "best_oa_location",
                                          "cited_by_count", "concepts", "counts_by_year",
