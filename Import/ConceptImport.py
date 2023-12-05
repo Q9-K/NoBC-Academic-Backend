@@ -5,7 +5,7 @@ import sys
 import gzip
 from tqdm import tqdm
 from datetime import datetime
-from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested
+from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Double
 from elasticsearch.helpers import parallel_bulk
 
 
@@ -19,25 +19,48 @@ class ConceptDocument(Document):
             "cited_by_count": Integer(),
         }
     )
-    display_name = Text()
-    works_count = Integer()
-    last_known_institution = Nested(
+    summary_stats = Nested(
         properties={
-            "id": Keyword(),
-            "ror": Keyword(),
-            "display_name": Keyword(),
-            "country_code": Keyword(),
-            "type": Keyword(),
-            "lineage": Keyword(multi=True)
+            "2yr_mean_citedness": Double(),
+            "h_index": Integer(),
+            "i10_index": Integer(),
         }
     )
+    level = Integer()
+    display_name = Text()
+    works_count = Integer()
+    image_url = Text()
+    ancestors = Nested(
+        properties={
+            "id": Keyword(),
+            "display_name": Keyword(),
+            "level": Integer(),
+            "score": Double(),
+        }
+    )
+    related_concepts = Nested(
+        properties={
+            "id": Keyword(),
+            "display_name": Keyword(),
+            "level": Integer(),
+            "score": Double(),
+        }
+    )
+    counts_by_year = Nested(
+        properties={
+            "year": Integer(),
+            "works_count": Integer(),
+            "cited_by_count": Integer(),
+        }
+    )
+    works_api_url = Text()
+
 
     class Index:
         name = 'concept'
         settings = {
             'number_of_shards': 5,
             'number_of_replicas': 0,
-            'index.mapping.nested_objects.limit': 500000
         }
 
 
@@ -49,9 +72,9 @@ def run(client, file_name):
         start_time = time.perf_counter()
         for line in file:
             data = json.loads(line)
-            properties_to_extract = ["id", "cited_by_count", "counts_by_year", "display_name",
-                                     "works_count", "last_known_institution"]
-            data = {key: data[key] for key in properties_to_extract}
+            properties_to_extract = ["id", "cited_by_count", "counts_by_year", "summary_stats", "level", "display_name", "works_count", "image_url", "ancestors",
+            "related_concepts", "counts_by_year", "works_api_url"]
+            data = {key: data.get(key) for key in properties_to_extract}
             if data.get('id'):
                 i += 1
                 data_list.append({
@@ -83,20 +106,20 @@ def run(client, file_name):
 if __name__ == "__main__":
     cl = connections.create_connection(hosts=['localhost'])
     ConceptDocument.init()
-    print('日志路径', os.path.join(os.path.dirname(os.path.abspath(__file__)), "ConceptImport.log"))
-
-    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "ConceptImport.log"), 'w', encoding='utf-8') as file:
-        print("Start insert to ElasticSearch at {}".format(datetime.now()))
-        original_stdout = sys.stdout
-        sys.stdout = file
-        root_path = 'J:\\openalex-snapshot\\data\\authors'
-        # 获取所有子文件夹
-        sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))][0:10]
-        for sub_folder in tqdm(sub_folders):
-            folder_path = os.path.join(root_path, sub_folder)
-            files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
-            for zip_file in files:
-                file_name = os.path.join(folder_path, zip_file)
-                run(cl, file_name)
-        sys.stdout = original_stdout
-        print("Finished insert to Elasticsearch at{}".format(datetime.now()))
+    # print('日志路径', os.path.join(os.path.dirname(os.path.abspath(__file__)), "AuthorImport.log"))
+    #
+    # with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "AuthorImport.log"), 'w',encoding='utf-8') as file:
+    print("Start insert to ElasticSearch at {}".format(datetime.now()))
+    # original_stdout = sys.stdout
+    # sys.stdout = file
+    root_path = '/data/openalex-snapshot/data/concepts'
+    # 获取所有子文件夹
+    sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
+    for sub_folder in tqdm(sub_folders):
+        folder_path = os.path.join(root_path, sub_folder)
+        files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
+        for zip_file in files:
+            file_name = os.path.join(folder_path, zip_file)
+            run(cl, file_name)
+    # sys.stdout = original_stdout
+    print("Finished insert to Elasticsearch at{}".format(datetime.now()))
