@@ -73,7 +73,7 @@ class WorkDocument(Document):
     class Index:
         name = 'work'
         settings = {
-            'number_of_shards': 16,
+            'number_of_shards': 40,
             'number_of_replicas': 0,
             'index.mapping.nested_objects.limit': 200000,
             'index.refresh_interval': -1,
@@ -106,7 +106,7 @@ def generate_actions(file_name):
 
 def run(file_name):
     actions = generate_actions(file_name)
-    for success, info in parallel_bulk(client=cl, actions=actions, thread_count=8, chunk_size=1000):
+    for success, info in parallel_bulk(client=cl, actions=actions, thread_count=6, queue_size=6, chunk_size=5000):
         if not success:
             print(f'Failed to index document: {info}')
 
