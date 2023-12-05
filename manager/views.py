@@ -1,34 +1,35 @@
 from manager.models import Manager
 from utils.Response import response
-from NoBC.commons import Commons
+from NoBC.status_code import *
 from utils.Token import generate_token, get_value
 from message.models import Certification, Complaint
+
 
 # Create your views here.
 
 # 管理员登录
 def login_view(request):
     if request.method != 'POST':
-        return response(Commons.METHOD_ERROR, '请求方法错误')
+        return response(METHOD_ERROR, '请求方法错误', True)
     else:
         name = request.POST.get('name')
         password = request.POST.get('password')
         try:
             manager = Manager.objects.get(name=name)
             if password != manager.password:
-                return response(Commons.PARAMS_ERROR, '用户名或密码错误！')
+                return response(PARAMS_ERROR, '用户名或密码错误！', True)
             else:
                 dic = {'name': name}
                 token = generate_token(dic, 60 * 60 * 24)
-                return response(Commons.SUCCESS, '登录成功！', data=token)
+                return response(SUCCESS, '登录成功！', data=token)
         except Exception as e:
-            return response(Commons.PARAMS_ERROR, '用户名或密码错误！')
+            return response(PARAMS_ERROR, '用户名或密码错误！', True)
 
 
 # 获取需要审核的认证
 def get_certifications(request):
     if request.method != 'GET':
-        return response(Commons.METHOD_ERROR, '请求方法错误')
+        return response(METHOD_ERROR, '请求方法错误', True)
     else:
         token = request.GET.get('token', None)
         value = get_value(token)
@@ -40,17 +41,17 @@ def get_certifications(request):
                 data = []
                 for certification in certifications:
                     data.append(certification.to_string())
-                return response(Commons.SUCCESS, '获取需要审核的认证记录成功！', data=data)
+                return response(SUCCESS, '获取需要审核的认证记录成功！', data=data)
             except Exception as e:
-                return response(Commons.PARAMS_ERROR, '不存在此管理员！')
+                return response(MYSQL_ERROR, '不存在此管理员！', True)
         else:
-            return response(Commons.PARAMS_ERROR, 'token错误！')
+            return response(PARAMS_ERROR, 'token错误！', True)
 
 
 # 获取需要审核的投诉
 def get_complaints(request):
     if request.method != 'GET':
-        return response(Commons.METHOD_ERROR, '请求方法错误')
+        return response(METHOD_ERROR, '请求方法错误', True)
     else:
         token = request.GET.get('token', None)
         value = get_value(token)
@@ -62,17 +63,17 @@ def get_complaints(request):
                 data = []
                 for complaint in complaints:
                     data.append(complaint.to_string())
-                return response(Commons.SUCCESS, '获取需要审核的投诉记录成功！', data=data)
+                return response(SUCCESS, '获取需要审核的投诉记录成功！', data=data)
             except Exception as e:
-                return response(Commons.PARAMS_ERROR, '不存在此管理员！')
+                return response(MYSQL_ERROR, '不存在此管理员！', True)
         else:
-            return response(Commons.PARAMS_ERROR, 'token错误！')
+            return response(PARAMS_ERROR, 'token错误！', True)
 
 
 # 审核认证
 def check_certification(request):
     if request.method != 'POST':
-        return response(Commons.METHOD_ERROR, '请求方法错误')
+        return response(METHOD_ERROR, '请求方法错误', True)
     else:
         token = request.POST.get('token', None)
         certification_id = request.POST.get('certification_id', None)
@@ -85,7 +86,7 @@ def check_certification(request):
             if value:
                 name = value['name']
                 try:
-                    manager = Manager.objects.get(name=name)
+                    Manager.objects.get(name=name)
                     try:
                         certification = Certification.objects.get(id=certification_id)
                         if status_code == '1':
@@ -93,22 +94,22 @@ def check_certification(request):
                         elif status_code == '2':
                             certification.status = Certification.REJECTED
                         else:
-                            return response(Commons.PARAMS_ERROR, 'status错误！')
+                            return response(PARAMS_ERROR, 'status错误！')
                         certification.result_msg = opinion
                     except Exception as e:
-                        return response(Commons.PARAMS_ERROR, '不存在此认证记录！')
+                        return response(PARAMS_ERROR, '不存在此认证记录！')
                 except Exception as e:
-                    return response(Commons.PARAMS_ERROR, '不存在此管理员！')
+                    return response(PARAMS_ERROR, '不存在此管理员！')
             else:
-                return response(Commons.PARAMS_ERROR, 'token错误！')
+                return response(PARAMS_ERROR, 'token错误！')
         else:
-            return response(Commons.PARAMS_ERROR, '字段不可为空！')
+            return response(PARAMS_ERROR, '字段不可为空！')
 
 
 # 审核投诉
 def check_complaint(request):
     if request.method != 'POST':
-        return response(Commons.METHOD_ERROR, '请求方法错误')
+        return response(METHOD_ERROR, '请求方法错误', True)
     else:
         token = request.POST.get('token', None)
         complaint_id = request.POST.get('complaint_id', None)
@@ -129,13 +130,13 @@ def check_complaint(request):
                         elif status_code == '2':
                             complaint.status = Complaint.REJECTED
                         else:
-                            return response(Commons.PARAMS_ERROR, 'status错误！')
+                            return response(PARAMS_ERROR, 'status错误！', True)
                         complaint.result_msg = opinion
                     except Exception as e:
-                        return response(Commons.PARAMS_ERROR, '不存在此投诉记录！')
+                        return response(MYSQL_ERROR, '不存在此投诉记录！', True)
                 except Exception as e:
-                    return response(Commons.PARAMS_ERROR, '不存在此管理员！')
+                    return response(MYSQL_ERROR, '不存在此管理员！', True)
             else:
-                return response(Commons.PARAMS_ERROR, 'token错误！')
+                return response(PARAMS_ERROR, 'token错误！', True)
         else:
-            return response(Commons.PARAMS_ERROR, '字段不可为空！')
+            return response(PARAMS_ERROR, '字段不可为空！', True)
