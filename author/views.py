@@ -1,8 +1,8 @@
 from django.http import JsonResponse
 from elasticsearch_dsl import Search
 from elasticsearch_dsl.connections import connections
-from NoBC.commons import Commons
 from author.models import Author
+from NoBC.status_code import *
 
 elasticsearch_connection = connections.get_connection()
 
@@ -31,14 +31,14 @@ def get_author_by_name(request):
             res['authors'].append(hit['_source'])
 
         return JsonResponse({
-            'code': Commons.SUCCESS,
+            'code': SUCCESS,
             'error': False,
             'message': 'success',
             'data': res
         })
     else:
         return JsonResponse({
-            'code': Commons.METHOD_ERROR,
+            'code': METHOD_ERROR,
             'error': True,
             'message': '请求方式错误'
         })
@@ -57,7 +57,7 @@ def get_author_by_id(request):
     es_res = elasticsearch_connection.search(index='author', body=query_body)
     res = es_res['hits']['hits'][0]['_source']
     return JsonResponse({
-        'code': Commons.SUCCESS,
+        'code': SUCCESS,
         'error': False,
         'message': 'success',
         'data': res
@@ -132,7 +132,7 @@ def get_scholar_metrics(request):
     es_res = elasticsearch_connection.search(index='author', body=query_body)
     res = es_res['hits']['hits'][0]['_source']
     return JsonResponse({
-        'code': Commons.SUCCESS,
+        'code': SUCCESS,
         'msg': 'success',
         'data': res
     })
