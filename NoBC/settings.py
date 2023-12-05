@@ -128,7 +128,7 @@ INSTALLED_APPS = [
 
 ELASTICSEARCH_DSL = {
     'default': {
-        'hosts': '127.0.0.1:9200',
+        'hosts': '123.60.99.8:9200',
         'timeout': 60,
     }
 }

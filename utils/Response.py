@@ -1,10 +1,11 @@
 from django.http import JsonResponse
-from NoBC.commons import Commons
+from NoBC.status_code import *
 
 
-def response(code=Commons.SUCCESS, msg='', data=None):
+def response(code=SUCCESS, msg='', data=None, error=False):
     return JsonResponse({
         'code': code,
         'msg': msg,
-        'data': data
+        'data': data,
+        'error': error
     })

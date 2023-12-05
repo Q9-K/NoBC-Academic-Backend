@@ -1,7 +1,6 @@
 import os
 import json
 import time
-import sys
 import gzip
 from tqdm import tqdm
 from datetime import datetime
@@ -11,6 +10,8 @@ from elasticsearch.helpers import parallel_bulk
 
 class ConceptDocument(Document):
     id = Keyword()
+    display_name = Text()
+    image_url = Text()
     cited_by_count = Integer()
     counts_by_year = Nested(
         properties={
@@ -27,9 +28,7 @@ class ConceptDocument(Document):
         }
     )
     level = Integer()
-    display_name = Text()
     works_count = Integer()
-    image_url = Text()
     ancestors = Nested(
         properties={
             "id": Keyword(),
@@ -54,6 +53,7 @@ class ConceptDocument(Document):
         }
     )
     works_api_url = Text()
+    chinese_display_name = Text()
 
 
     class Index:
@@ -75,6 +75,8 @@ def run(client, file_name):
             properties_to_extract = ["id", "cited_by_count", "counts_by_year", "summary_stats", "level", "display_name", "works_count", "image_url", "ancestors",
             "related_concepts", "counts_by_year", "works_api_url"]
             data = {key: data.get(key) for key in properties_to_extract}
+            #data增加中文,在international中display_name的zh_cn字段对应的
+            data['chinese_display_name'] = data['international']['display_name']['zh_cn']
             if data.get('id'):
                 i += 1
                 data_list.append({
@@ -104,7 +106,7 @@ def run(client, file_name):
 
 
 if __name__ == "__main__":
-    cl = connections.create_connection(hosts=['localhost'])
+    cl = connections.create_connection(hosts=['http://123.60.99.8:9200'])
     ConceptDocument.init()
     # print('日志路径', os.path.join(os.path.dirname(os.path.abspath(__file__)), "AuthorImport.log"))
     #
