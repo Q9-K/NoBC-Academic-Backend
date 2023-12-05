@@ -1,6 +1,8 @@
+from pprint import pprint
+
 from elasticsearch_dsl import Search, connections, Q
 
-from NoBC.commons import Commons
+from NoBC.status_code import *
 from config import ELAS_HOST
 from utils.Response import response
 
@@ -40,9 +42,9 @@ def getInstitutionList(request):
             dic = ele['_source']
             dic['sort'] = ele['sort']
             data.append(dic)
-        return response(Commons.SUCCESS, '查询成功', data)
+        return response(SUCCESS, '查询成功', data)
     else:
-        return response(Commons.METHOD_ERROR, '请求方式错误', True)
+        return response(METHOD_ERROR, '请求方式错误', True)
 
 
 def getInstitutionDetail(request):
@@ -55,16 +57,16 @@ def getInstitutionDetail(request):
         # 获取参数,需要id
         institution_id = request.GET.get('id', "")
         if institution_id == "":
-            return response(Commons.PARAMS_ERROR, '参数错误')
+            return response(PARAMS_ERROR, '参数错误')
         # 查询
         search = Search(using=ES_CONN, index='institution').query('term', id=institution_id)
         ret = search.execute().to_dict()['hits']['hits']
         if len(ret) == 0:
-            return response(Commons.DATABASE_ERROR, '未找到该机构', True)
+            return response(ELASTIC_ERROR, '未找到该机构', True)
         else:
-            return response(Commons.SUCCESS, '查询成功', ret[0]['_source'])
+            return response(SUCCESS, '查询成功', ret[0]['_source'])
     else:
-        return response(Commons.METHOD_ERROR, '请求方式错误', True)
+        return response(METHOD_ERROR, '请求方式错误', True)
 
 
 def getInstitutionByKeyword(request):
@@ -97,6 +99,6 @@ def getInstitutionByKeyword(request):
             dic = ele['_source']
             dic['sort'] = ele['sort']
             data.append(dic)
-        return response(Commons.SUCCESS, '查询成功', data)
+        return response(SUCCESS, '查询成功', data)
     else:
-        return response(Commons.METHOD_ERROR, '请求方式错误', True)
+        return response(METHOD_ERROR, '请求方式错误', True)
