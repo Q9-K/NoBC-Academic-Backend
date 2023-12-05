@@ -77,9 +77,6 @@ class WorkDocument(Document):
             'number_of_replicas': 0,
             'index.mapping.nested_objects.limit': 200000,
             'index.refresh_interval': -1,
-            'index.translog.durability': 'async',
-            'index.translog.sync_interval': '300s',
-            'index.translog.flush_threshold_size': '512mb'
         }
 
 
@@ -109,7 +106,7 @@ def generate_actions(file_name):
 
 def run(file_name):
     actions = generate_actions(file_name)
-    for success, info in parallel_bulk(client=cl, actions=actions, thread_count=8):
+    for success, info in parallel_bulk(client=cl, actions=actions, queue_size=8):
         if not success:
             print(f'Failed to index document: {info}')
 
@@ -130,7 +127,7 @@ if __name__ == "__main__":
     # 获取所有子文件夹
     sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
 
-    for sub_folder in tqdm(sub_folders):
+    for sub_folder in sub_folders:
         folder_path = os.path.join(root_path, sub_folder)
         process_files(folder_path)
     end_time = datetime.now()
