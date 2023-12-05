@@ -10,26 +10,26 @@ from message.models import Certification, Complaint
 # 管理员登录
 def login_view(request):
     if request.method != 'POST':
-        return response(METHOD_ERROR, '请求方法错误', True)
+        return response(METHOD_ERROR, '请求方法错误', error=True)
     else:
         name = request.POST.get('name')
         password = request.POST.get('password')
         try:
             manager = Manager.objects.get(name=name)
             if password != manager.password:
-                return response(PARAMS_ERROR, '用户名或密码错误！', True)
+                return response(PARAMS_ERROR, '用户名或密码错误！', error=True)
             else:
                 dic = {'name': name}
                 token = generate_token(dic, 60 * 60 * 24)
                 return response(SUCCESS, '登录成功！', data=token)
         except Exception as e:
-            return response(PARAMS_ERROR, '用户名或密码错误！', True)
+            return response(PARAMS_ERROR, '用户名或密码错误！', error=True)
 
 
 # 获取需要审核的认证
 def get_certifications(request):
     if request.method != 'GET':
-        return response(METHOD_ERROR, '请求方法错误', True)
+        return response(METHOD_ERROR, '请求方法错误', error=True)
     else:
         token = request.GET.get('token', None)
         value = get_value(token)
@@ -43,15 +43,15 @@ def get_certifications(request):
                     data.append(certification.to_string())
                 return response(SUCCESS, '获取需要审核的认证记录成功！', data=data)
             except Exception as e:
-                return response(MYSQL_ERROR, '不存在此管理员！', True)
+                return response(MYSQL_ERROR, '不存在此管理员！', error=True)
         else:
-            return response(PARAMS_ERROR, 'token错误！', True)
+            return response(PARAMS_ERROR, 'token错误！', error=True)
 
 
 # 获取需要审核的投诉
 def get_complaints(request):
     if request.method != 'GET':
-        return response(METHOD_ERROR, '请求方法错误', True)
+        return response(METHOD_ERROR, '请求方法错误', error=True)
     else:
         token = request.GET.get('token', None)
         value = get_value(token)
@@ -65,15 +65,15 @@ def get_complaints(request):
                     data.append(complaint.to_string())
                 return response(SUCCESS, '获取需要审核的投诉记录成功！', data=data)
             except Exception as e:
-                return response(MYSQL_ERROR, '不存在此管理员！', True)
+                return response(MYSQL_ERROR, '不存在此管理员！', error=True)
         else:
-            return response(PARAMS_ERROR, 'token错误！', True)
+            return response(PARAMS_ERROR, 'token错误！', error=True)
 
 
 # 审核认证
 def check_certification(request):
     if request.method != 'POST':
-        return response(METHOD_ERROR, '请求方法错误', True)
+        return response(METHOD_ERROR, '请求方法错误', error=True)
     else:
         token = request.POST.get('token', None)
         certification_id = request.POST.get('certification_id', None)
@@ -109,7 +109,7 @@ def check_certification(request):
 # 审核投诉
 def check_complaint(request):
     if request.method != 'POST':
-        return response(METHOD_ERROR, '请求方法错误', True)
+        return response(METHOD_ERROR, '请求方法错误', error=True)
     else:
         token = request.POST.get('token', None)
         complaint_id = request.POST.get('complaint_id', None)
@@ -130,13 +130,13 @@ def check_complaint(request):
                         elif status_code == '2':
                             complaint.status = Complaint.REJECTED
                         else:
-                            return response(PARAMS_ERROR, 'status错误！', True)
+                            return response(PARAMS_ERROR, 'status错误！', error=True)
                         complaint.result_msg = opinion
                     except Exception as e:
-                        return response(MYSQL_ERROR, '不存在此投诉记录！', True)
+                        return response(MYSQL_ERROR, '不存在此投诉记录！', error=True)
                 except Exception as e:
-                    return response(MYSQL_ERROR, '不存在此管理员！', True)
+                    return response(MYSQL_ERROR, '不存在此管理员！', error=True)
             else:
-                return response(PARAMS_ERROR, 'token错误！', True)
+                return response(PARAMS_ERROR, 'token错误！', error=True)
         else:
-            return response(PARAMS_ERROR, '字段不可为空！', True)
+            return response(PARAMS_ERROR, '字段不可为空！', error=True)

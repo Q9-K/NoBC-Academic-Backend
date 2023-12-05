@@ -1,5 +1,3 @@
-from pprint import pprint
-
 from elasticsearch_dsl import Search, connections, Q
 
 from NoBC.status_code import *
@@ -44,7 +42,7 @@ def getInstitutionList(request):
             data.append(dic)
         return response(SUCCESS, '查询成功', data)
     else:
-        return response(METHOD_ERROR, '请求方式错误', True)
+        return response(METHOD_ERROR, '请求方式错误', error=True)
 
 
 def getInstitutionDetail(request):
@@ -62,11 +60,11 @@ def getInstitutionDetail(request):
         search = Search(using=ES_CONN, index='institution').query('term', id=institution_id)
         ret = search.execute().to_dict()['hits']['hits']
         if len(ret) == 0:
-            return response(ELASTIC_ERROR, '未找到该机构', True)
+            return response(ELASTIC_ERROR, '未找到该机构', error=True)
         else:
             return response(SUCCESS, '查询成功', ret[0]['_source'])
     else:
-        return response(METHOD_ERROR, '请求方式错误', True)
+        return response(METHOD_ERROR, '请求方式错误', error=True)
 
 
 def getInstitutionByKeyword(request):
@@ -101,4 +99,4 @@ def getInstitutionByKeyword(request):
             data.append(dic)
         return response(SUCCESS, '查询成功', data)
     else:
-        return response(METHOD_ERROR, '请求方式错误', True)
+        return response(METHOD_ERROR, '请求方式错误', error=True)
