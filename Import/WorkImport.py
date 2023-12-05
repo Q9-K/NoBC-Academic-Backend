@@ -8,6 +8,7 @@ from datetime import datetime
 from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Date, Float, Boolean
 from elasticsearch.helpers import parallel_bulk
 import jsonlines
+import gc
 
 
 cl = connections.create_connection(hosts=['localhost'])
@@ -80,7 +81,7 @@ class WorkDocument(Document):
             'index.mapping.nested_objects.limit': 500000,
             'index.refresh_interval': -1,
             'index.translog.durability': 'async',
-            'index.translog.sync_interval': '120s',
+            'index.translog.sync_interval': '300s',
             'index.translog.flush_threshold_size': '512mb'
         }
 
@@ -114,6 +115,7 @@ def run(file_name):
     for success, info in parallel_bulk(client=cl, actions=actions, queue_size=10, chunk_size=2000):
         if not success:
             print(f'Failed to index document: {info}')
+    gc.collect()
 
 
 def process_files(folder_path):
