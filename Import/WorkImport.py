@@ -76,22 +76,18 @@ class WorkDocument(Document):
             'number_of_shards': 16,
             'number_of_replicas': 0,
             'index.mapping.nested_objects.limit': 200000,
-            'index.refresh_interval': '300s',
+            'index.refresh_interval': -1,
             'index.translog.durability': 'async',
             'index.translog.sync_interval': '300s',
             'index.translog.flush_threshold_size': '512mb'
         }
 
 
-def run(file_name):
+def generate_actions(file_name):
     with gzip.open(file_name, 'rt', encoding='utf-8') as file:
         lines = file.readlines()
-        index = 0
-        actions = []
         for line in lines:
-            index = index + 1
             data = json.loads(line)
-            # 在这里进行适当的数据处理，构建文档
             properties_to_extract = ["id", "title", "authorships", "best_oa_location",
                                      "cited_by_count", "concepts", "counts_by_year",
                                      "created_date", "language", "type", "publication_date",
@@ -108,16 +104,14 @@ def run(file_name):
                 '_op_type': 'index',
                 '_source': data
             }
-            actions.append(document)
-            if index == 40000:
-                index = 0
-                for success, info in parallel_bulk(client=cl, actions=actions, thread_count=8, queue_size=8, chunk_size=5000):
-                    if not success:
-                        print(f'Failed to index document: {info}')
-                actions = []
-        for success, info in parallel_bulk(client=cl, actions=actions, thread_count=8, queue_size=8, chunk_size=5000):
-            if not success:
-                print(f'Failed to index document: {info}')
+            yield document
+
+
+def run(file_name):
+    actions = generate_actions(file_name)
+    for success, info in parallel_bulk(client=cl, actions=actions, thread_count=8, queue_size=8, chunk_size=1000):
+        if not success:
+            print(f'Failed to index document: {info}')
 
 
 def process_files(folder):
