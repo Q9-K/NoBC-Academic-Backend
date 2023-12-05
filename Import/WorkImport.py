@@ -1,11 +1,11 @@
+import json
 import os
 import gzip
 from tqdm import tqdm
 from datetime import datetime
 from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Date, Float, Boolean
 from elasticsearch.helpers import parallel_bulk, streaming_bulk
-import jsonlines
-from concurrent.futures import ThreadPoolExecutor
+import gc
 
 
 cl = connections.create_connection(hosts=['localhost'])
@@ -84,42 +84,42 @@ class WorkDocument(Document):
 
 
 def generate_actions(file_name):
+    gc.collect()
     with gzip.open(file_name, 'rt', encoding='utf-8') as file:
-        with jsonlines.Reader(file) as lines:
-            for data in lines:
-                # 在这里进行适当的数据处理，构建文档
-                properties_to_extract = ["id", "title", "authorships", "best_oa_location",
-                                         "cited_by_count", "concepts", "counts_by_year",
-                                         "created_date", "language", "type", "publication_date",
-                                         "referenced_works", "related_works"]
-                abstract = data.get('abstract_inverted_index')
-                data = {key: data[key] for key in properties_to_extract}
-                data['abstract'] = None
-                if abstract:
-                    positions = [(word, pos) for word, pos_list in abstract.items() for pos in pos_list]
-                    positions.sort(key=lambda x: x[1])
-                    data['abstract'] = ' '.join([word for word, _ in positions])
-                document = {
-                    '_index': 'work',
-                    '_op_type': 'index',
-                    '_source': data
-                }
-                yield document
+        lines = file.readlines()
+        for line in lines:
+            data = json.loads(line)
+            # 在这里进行适当的数据处理，构建文档
+            properties_to_extract = ["id", "title", "authorships", "best_oa_location",
+                                     "cited_by_count", "concepts", "counts_by_year",
+                                     "created_date", "language", "type", "publication_date",
+                                     "referenced_works", "related_works"]
+            abstract = data.get('abstract_inverted_index')
+            data = {key: data[key] for key in properties_to_extract}
+            data['abstract'] = None
+            if abstract:
+                positions = [(word, pos) for word, pos_list in abstract.items() for pos in pos_list]
+                positions.sort(key=lambda x: x[1])
+                data['abstract'] = ' '.join([word for word, _ in positions])
+            document = {
+                '_index': 'work',
+                '_op_type': 'index',
+                '_source': data
+            }
+            yield document
 
 
 def run(file_name):
     actions = generate_actions(file_name)
-    for success, info in streaming_bulk(client=cl, actions=actions, chunk_size=2000, max_retries=2):
+    for success, info in parallel_bulk(client=cl, actions=actions, thread_count=8, queue_size=8):
         if not success:
             print(f'Failed to index document: {info}')
 
 
-def process_files(folder_path):
-    files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        futures = [executor.submit(run, os.path.join(folder_path, file)) for file in files]
-        for future in futures:
-            future.result()
+def process_files(folder):
+    files = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
+    for file in files:
+        run(os.path.join(folder, file))
 
 
 if __name__ == "__main__":
@@ -132,9 +132,9 @@ if __name__ == "__main__":
     # 获取所有子文件夹
     sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
 
-    for sub_folder in sub_folders:
+    for sub_folder in tqdm(sub_folders):
         folder_path = os.path.join(root_path, sub_folder)
         process_files(folder_path)
     end_time = datetime.now()
     print("Finished insert to Elasticsearch at{}".format(end_time))
-    print("cost time {}".format(end_time-start_time))
+    print("cost time {}".format(end_time - start_time))
