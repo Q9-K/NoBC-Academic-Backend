@@ -136,3 +136,11 @@ def get_scholar_metrics(request):
         'msg': 'success',
         'data': res
     })
+
+
+def test_merge(request):
+    return JsonResponse({
+        'code': Commons.SUCCESS,
+        'msg': 'success',
+        'data': 'test'
+    })
