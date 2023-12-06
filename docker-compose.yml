@@ -24,18 +24,18 @@ services:
 ##    ports:
 ##      - 5601:5601
 #
-#  mysql:
-#    image: mysql:8.0.19
-#    container_name: mysql
-#    restart: on-failure
-#    environment:
-#      - "MYSQL_ROOT_PASSWORD=root"
-#    volumes:
-#      - /j/mysql/conf:/etc/mysql/conf.d
-#      - /j/mysql/logs:/var/log/mysql
-#      - /j/mysql/data:/var/lib/mysql
-#    ports:
-#      - 3306:3306
+  mysql:
+    image: mysql:8.0.19
+    container_name: mysql
+    restart: on-failure
+    environment:
+      - "MYSQL_ROOT_PASSWORD=root"
+    volumes:
+      - /j/mysql/conf:/etc/mysql/conf.d
+      - /j/mysql/logs:/var/log/mysql
+      - /j/mysql/data:/var/lib/mysql
+    ports:
+      - 3306:3306
 
   redis:
       image: redis:7.0.0 # 指定服务镜像，最好是与之前下载的redis配置文件保持一致
