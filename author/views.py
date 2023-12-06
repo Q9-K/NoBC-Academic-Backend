@@ -87,7 +87,7 @@ def get_works(request):
     res = elasticsearch_connection.search(index='work', body=query_body)
 
     return JsonResponse({
-        'code': 0,
+        'code': SUCCESS,
         'error': False,
         'message': 'success',
         'data': res
@@ -107,7 +107,7 @@ def get_hot_authors(request):
         })
 
     return JsonResponse({
-        'code': 0,
+        'code': SUCCESS,
         'msg': 'success',
         'data': res
     })
