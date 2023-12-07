@@ -1,11 +1,9 @@
 import json
 import os
 import gzip
-from tqdm import tqdm
 from datetime import datetime
 from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Date, Float, Boolean
-from elasticsearch.helpers import parallel_bulk, streaming_bulk
-import gc
+from elasticsearch.helpers import parallel_bulk
 
 
 cl = connections.create_connection(hosts=['localhost'])

@@ -1,7 +1,7 @@
 version: "3.5"
 services:
   elasticsearch:
-    image: elasticsearch:7.17.13
+    image: elasticsearch:7.17.7
     container_name: elasticsearch
     restart: on-failure
     environment:
