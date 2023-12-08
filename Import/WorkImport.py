@@ -63,8 +63,8 @@ class WorkDocument(Document):
     language = Keyword()
     type = Keyword()
     publication_date = Date()
-    referenced_works = Keyword(multi=True, index=False)
-    related_works = Keyword(multi=True, index=False)
+    referenced_works = Keyword(index=False)
+    related_works = Keyword(index=False)
     abstract = Text(analyzer='ik_smart', search_analyzer='ik_smart')
     locations = Nested(
         properties={
@@ -125,7 +125,7 @@ def generate_actions(file_name):
 
 def run(file_name):
     actions = generate_actions(file_name)
-    for success, info in parallel_bulk(actions=actions, thread_count=6, queue_size=6, chunk_size=5000):
+    for success, info in parallel_bulk(actions=actions, thread_count=8, queue_size=8, chunk_size=5000):
         if not success:
             print(f'Failed to index document: {info}')
 

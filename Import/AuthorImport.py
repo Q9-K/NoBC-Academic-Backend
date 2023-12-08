@@ -28,7 +28,7 @@ class ScholarDocument(Document):
             "display_name": Text(),
             "country_code": Keyword(),
             "type": Keyword(index=False),
-            "lineage": Keyword(multi=True, index=False)
+            "lineage": Keyword(index=False)
         }
     )
     user_id = Keyword()

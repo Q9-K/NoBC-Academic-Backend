@@ -21,7 +21,7 @@ class SourceDocument(Document):
     display_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
     homepage_url = Keyword(index=False)
     host_organization = Keyword(index=False)
-    host_organization_lineage = Keyword(multi=True, index=False)
+    host_organization_lineage = Keyword(index=False)
     host_organization_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
     summary_stats = Nested(
         properties={

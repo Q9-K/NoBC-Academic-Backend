@@ -14,7 +14,7 @@ class InstitutionDocument(Document):
     display_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
     homepage_url = Keyword()
     image_url = Keyword()
-    lineage = Keyword(multi=True)
+    lineage = Keyword()
     ror = Keyword()
     type = Keyword()
     works_api_url = Text()

@@ -8,8 +8,8 @@ from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nes
 from elasticsearch.helpers import parallel_bulk
 from elasticsearch import Elasticsearch
 
-cl = Elasticsearch(hosts='localhost', timeout=60)
-connections.create_connection(cl)
+connections.create_connection(hosts=['localhost'], timeout=60)
+client = Elasticsearch(hosts=['localhost'], timeout=60)
 
 class ConceptDocument(Document):
     id = Keyword()
@@ -84,7 +84,7 @@ class ConceptDocument(Document):
 
 
 
-def run(client, file_name):
+def run(file_name):
     with gzip.open(file_name, 'rt', encoding='utf-8') as file:
         i = 0
         data_list = []
@@ -164,6 +164,6 @@ if __name__ == "__main__":
         files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
         for zip_file in files:
             file_name = os.path.join(folder_path, zip_file)
-            run(cl, file_name)
+            run(file_name)
     # sys.stdout = original_stdout
     print("Finished insert to Elasticsearch at{}".format(datetime.now()))
