@@ -1,29 +1,16 @@
 version: "3.5"
 services:
-#  elasticsearch:
-#    image: elasticsearch:7.9.0
-#    container_name: elastic
-#    restart: on-failure
-#    environment:
-#      - "discovery.type=single-node"
-#    volumes:
-#      - /j/elasticsearch/config:/usr/share/elasticsearch/config
-#      - /j/elasticsearch/data:/usr/share/elasticsearch/data
-#      - /j/elasticsearch/plugins:/usr/share/elasticsearch/plugins
-#    ports:
-#      - 9200:9200
-#
-##  kibana:
-##    depends_on:
-##      - elasticsearch
-##    image: kibana:7.9.0
-##    container_name: kibana
-##    restart: no
-##    volumes:
-##      - /j/kibana/config:/usr/share/kibana/config
-##    ports:
-##      - 5601:5601
-#
+  elasticsearch:
+    image: elasticsearch:7.17.7
+    container_name: elasticsearch
+    restart: on-failure
+    environment:
+      - "discovery.type=single-node"
+    volumes:
+      - /data/elasticsearch:/usr/share/elasticsearch
+    ports:
+      - 9200:9200
+
   mysql:
     image: mysql:8.0.19
     container_name: mysql
@@ -31,9 +18,9 @@ services:
     environment:
       - "MYSQL_ROOT_PASSWORD=root"
     volumes:
-      - /C/Users/W/mysql/conf:/etc/mysql/conf.d
-      - /C/Users/W/mysql/logs:/var/log/mysql
-      - /C/Users/W/mysql/data:/var/lib/mysql
+      - /data/mysql/conf:/etc/mysql/conf.d
+      - /data/mysql/logs:/var/log/mysql
+      - /data/mysql/data:/var/lib/mysql
     ports:
       - 3306:3306
 

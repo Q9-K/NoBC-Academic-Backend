@@ -1,11 +1,9 @@
 import json
 import os
 import gzip
-from tqdm import tqdm
 from datetime import datetime
 from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Date, Float, Boolean
-from elasticsearch.helpers import parallel_bulk, streaming_bulk
-import gc
+from elasticsearch.helpers import parallel_bulk
 
 
 cl = connections.create_connection(hosts=['localhost'])
@@ -77,6 +75,9 @@ class WorkDocument(Document):
             'number_of_replicas': 0,
             'index.mapping.nested_objects.limit': 200000,
             'index.refresh_interval': -1,
+            'index.translog.durability': 'async',
+            'index.translog.sync_interval': '300s',
+            'index.translog.flush_threshold_size': '512mb',
         }
 
 
