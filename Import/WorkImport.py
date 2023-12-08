@@ -4,10 +4,8 @@ import gzip
 from datetime import datetime
 from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Date, Float, Boolean
 from elasticsearch.helpers import parallel_bulk
-from elasticsearch import Elasticsearch
 
-cl = Elasticsearch(hosts=['localhost'], timeout=60)
-connections.create_connection(cl)
+connections.create_connection(hosts=['localhost'], timeout=60)
 
 
 class WorkDocument(Document):
@@ -127,7 +125,7 @@ def generate_actions(file_name):
 
 def run(file_name):
     actions = generate_actions(file_name)
-    for success, info in parallel_bulk(client=cl, actions=actions, thread_count=6, queue_size=6, chunk_size=5000):
+    for success, info in parallel_bulk(actions=actions, thread_count=6, queue_size=6, chunk_size=5000):
         if not success:
             print(f'Failed to index document: {info}')
 
