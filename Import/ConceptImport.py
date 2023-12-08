@@ -9,6 +9,7 @@ from elasticsearch.helpers import parallel_bulk
 from elasticsearch import Elasticsearch
 
 cl = Elasticsearch(hosts='localhost', timeout=60)
+connections.create_connection(cl)
 
 class ConceptDocument(Document):
     id = Keyword()

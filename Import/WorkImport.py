@@ -7,7 +7,7 @@ from elasticsearch.helpers import parallel_bulk
 from elasticsearch import Elasticsearch
 
 cl = Elasticsearch(hosts=['localhost'], timeout=60)
-# cl = connections.create_connection(hosts=['localhost'])
+connections.create_connection(cl)
 
 
 class WorkDocument(Document):
