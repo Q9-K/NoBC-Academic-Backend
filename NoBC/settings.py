@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
 from pathlib import Path
+from elasticsearch_dsl import connections
 
 try:
     from config import *
@@ -188,8 +189,7 @@ CELERY_BROKER_URL = 'pyamqp://rabbit:123456@localhost//'
 CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/1'
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
-from elasticsearch_dsl import connections
 
 connections.configure(
-    default={'host': '123.60.99.8'}
+    default={'host': ELAS_HOST}
 )

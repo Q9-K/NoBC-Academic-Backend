@@ -3,14 +3,13 @@ from pprint import pprint
 from elasticsearch_dsl import Search, connections, Q
 
 from NoBC.status_code import *
-from config import ELAS_HOST
 from utils.Response import response
 
 # Create your views here.
 
 # 创建es连接
 ES_NAME = 'institution'
-ES_CONN = connections.create_connection(alias=ES_NAME, hosts=[ELAS_HOST], timeout=20)
+ES_CONN = connections.get_connection()
 
 
 def pagination(search, request) -> Search:

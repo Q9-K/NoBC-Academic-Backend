@@ -1,13 +1,13 @@
 import os
 import json
-import time
 import gzip
-from tqdm import tqdm
 from datetime import datetime
 from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested
 from elasticsearch.helpers import parallel_bulk
 
 cl = connections.create_connection(hosts=['localhost'])
+
+
 class ScholarDocument(Document):
     id = Keyword()
     cited_by_count = Integer()
@@ -30,18 +30,20 @@ class ScholarDocument(Document):
             "lineage": Keyword(multi=True)
         }
     )
+    user_id = Keyword()
 
     class Index:
         name = 'author'
         settings = {
             'number_of_shards': 5,
             'number_of_replicas': 0,
-            'index.mapping.nested_objects.limit': 500000,
+            'index.mapping.nested_objects.limit': 200000,
             'index.refresh_interval': -1,
             'index.translog.durability': 'async',
             'index.translog.sync_interval': '300s',
             'index.translog.flush_threshold_size': '512mb',
         }
+
 
 def generate_actions(file_name):
     with gzip.open(file_name, 'rt', encoding='utf-8') as file:
@@ -51,6 +53,7 @@ def generate_actions(file_name):
             properties_to_extract = ["id", "cited_by_count", "counts_by_year", "display_name",
                                      "works_count", "last_known_institution"]
             data = {key: data[key] for key in properties_to_extract}
+            data['user_id'] = None
             document = {
                 '_index': 'author',
                 '_op_type': 'index',
@@ -73,7 +76,6 @@ def process_files(folder):
 
 
 if __name__ == "__main__":
-    cl = connections.create_connection(hosts=['localhost'])
     ScholarDocument.init()
     start_time = datetime.now()
     print("Start insert to ElasticSearch at {}".format(datetime.now()))
