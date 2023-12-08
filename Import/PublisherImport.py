@@ -11,9 +11,9 @@ from elasticsearch.helpers import parallel_bulk
 
 class PublisherDocument(Document):
     id = Keyword()
-    display_name = Text()
-    homepage_url = Text()
-    image_url = Text()
+    display_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
+    homepage_url = Keyword(index=False)
+    image_url = Keyword(index=False)
 
     works_count = Integer()
     cited_by_count = Integer()

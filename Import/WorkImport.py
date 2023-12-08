@@ -4,51 +4,52 @@ import gzip
 from datetime import datetime
 from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Date, Float, Boolean
 from elasticsearch.helpers import parallel_bulk
+from elasticsearch import Elasticsearch
 
-
-cl = connections.create_connection(hosts=['localhost'])
+cl = Elasticsearch(hosts=['localhost'], timeout=60)
+# cl = connections.create_connection(hosts=['localhost'])
 
 
 class WorkDocument(Document):
     id = Keyword()
-    title = Text()
+    title = Text(analyzer='ik_smart', search_analyzer='ik_smart')
     authorships = Nested(
         properties={
             "author": Nested(
                 properties={
                     "id": Keyword(),
-                    "display_name": Keyword(),
+                    "display_name": Text(),
                     "orcid": Keyword()
                 }
             ),
-            "author_position": Keyword(),
-            "countries": Keyword()
+            "author_position": Keyword(index=False),
+            "countries": Keyword(index=False)
         }
     )
     best_oa_location = Nested(
         properties={
             "is_oa": Boolean(),
-            "landing_page_url": Keyword(),
-            "pdf_url": Keyword(),
+            "landing_page_url": Keyword(index=False),
+            "pdf_url": Keyword(index=False),
             "source": Nested(
                 properties={
                     "id": Keyword(),
-                    "display_name": Keyword(),
-                    "issn_l": Keyword(),
-                    "issn": Keyword(),
-                    "host_organization": Keyword(),
-                    "type": Keyword(),
+                    "display_name": Text(),
+                    "issn_l": Keyword(index=False),
+                    "issn": Keyword(index=False),
+                    "host_organization": Keyword(index=False),
+                    "type": Keyword(index=False),
                 }
             ),
-            "license": Keyword(),
-            "version": Keyword(),
+            "license": Keyword(index=False),
+            "version": Keyword(index=False),
         })
     cited_by_count = Integer()
     concepts = Nested(
         properties={
             "id": Keyword(),
-            "wikidata": Keyword(),
-            "display_name": Keyword(),
+            "wikidata": Keyword(index=False),
+            "display_name": Text(),
             "level": Integer(),
             "score": Float()
         }
@@ -64,9 +65,28 @@ class WorkDocument(Document):
     language = Keyword()
     type = Keyword()
     publication_date = Date()
-    referenced_works = Keyword(multi=True)
-    related_works = Keyword(multi=True)
-    abstract = Text()
+    referenced_works = Keyword(multi=True, index=False)
+    related_works = Keyword(multi=True, index=False)
+    abstract = Text(analyzer='ik_smart', search_analyzer='ik_smart')
+    locations = Nested(
+        properties={
+            "is_oa": Boolean(),
+            "landing_page_url": Keyword(index=False),
+            "pdf_url": Keyword(index=False),
+            "source": Nested(
+                properties={
+                    "id": Keyword(),
+                    "display_name": Text(),
+                    "issn_l": Keyword(index=False),
+                    "issn": Keyword(index=False),
+                    "host_organization": Keyword(index=False),
+                    "type": Keyword(index=False),
+                }
+            ),
+            "license": Keyword(index=False),
+            "version": Keyword(index=False),
+        }
+    )
 
     class Index:
         name = 'work'
@@ -89,7 +109,7 @@ def generate_actions(file_name):
             properties_to_extract = ["id", "title", "authorships", "best_oa_location",
                                      "cited_by_count", "concepts", "counts_by_year",
                                      "created_date", "language", "type", "publication_date",
-                                     "referenced_works", "related_works"]
+                                     "referenced_works", "related_works", "locations"]
             abstract = data.get('abstract_inverted_index')
             data = {key: data[key] for key in properties_to_extract}
             data['abstract'] = None

@@ -1,7 +1,6 @@
 import os
 import json
 import time
-import sys
 import gzip
 from tqdm import tqdm
 from datetime import datetime
@@ -12,10 +11,10 @@ from elasticsearch.helpers import parallel_bulk
 class InstitutionDocument(Document):
     id = Keyword()
     cited_by_count = Integer()
-    display_name = Text()
-    homepage_url = Text()
-    image_url = Text()
-    lineage = Text(multi=True)
+    display_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
+    homepage_url = Keyword()
+    image_url = Keyword()
+    lineage = Keyword(multi=True)
     ror = Keyword()
     type = Keyword()
     works_api_url = Text()

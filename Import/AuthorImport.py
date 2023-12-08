@@ -4,9 +4,9 @@ import gzip
 from datetime import datetime
 from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested
 from elasticsearch.helpers import parallel_bulk
+from elasticsearch import Elasticsearch
 
-cl = connections.create_connection(hosts=['localhost'])
-
+cl = Elasticsearch(hosts='localhost', timeout=60)
 
 class ScholarDocument(Document):
     id = Keyword()
@@ -18,16 +18,16 @@ class ScholarDocument(Document):
             "cited_by_count": Integer(),
         }
     )
-    display_name = Text()
+    display_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
     works_count = Integer()
     last_known_institution = Nested(
         properties={
             "id": Keyword(),
-            "ror": Keyword(),
-            "display_name": Keyword(),
+            "ror": Keyword(index=False),
+            "display_name": Text(),
             "country_code": Keyword(),
-            "type": Keyword(),
-            "lineage": Keyword(multi=True)
+            "type": Keyword(index=False),
+            "lineage": Keyword(multi=True, index=False)
         }
     )
     user_id = Keyword()

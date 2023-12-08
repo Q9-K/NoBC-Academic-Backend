@@ -1,13 +1,14 @@
 import os
 import json
 import time
-import sys
 import gzip
 from tqdm import tqdm
 from datetime import datetime
 from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Double
 from elasticsearch.helpers import parallel_bulk
+from elasticsearch import Elasticsearch
 
+cl = Elasticsearch(hosts='localhost', timeout=60)
 
 class ConceptDocument(Document):
     id = Keyword()
@@ -29,7 +30,7 @@ class ConceptDocument(Document):
     level = Integer()
     display_name = Text(analyzer='my_edge_ngram_analyzer')
     works_count = Integer()
-    image_url = Text()
+    image_url = Keyword()
     ancestors = Nested(
         properties={
             "id": Keyword(),
@@ -147,7 +148,6 @@ def run(client, file_name):
 
 
 if __name__ == "__main__":
-    cl = connections.create_connection(hosts=['localhost'])
     ConceptDocument.init()
     # print('日志路径', os.path.join(os.path.dirname(os.path.abspath(__file__)), "AuthorImport.log"))
     #
