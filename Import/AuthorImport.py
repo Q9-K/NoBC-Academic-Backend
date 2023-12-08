@@ -36,13 +36,17 @@ class ScholarDocument(Document):
     class Index:
         name = 'author'
         settings = {
-            'number_of_shards': 5,
+            'number_of_shards': 40,
             'number_of_replicas': 0,
-            'index.mapping.nested_objects.limit': 200000,
-            'index.refresh_interval': -1,
-            'index.translog.durability': 'async',
-            'index.translog.sync_interval': '300s',
-            'index.translog.flush_threshold_size': '512mb',
+            'index': {
+                'mapping.nested_objects.limit': 100000,
+                'refresh_interval': -1,
+                'translog': {
+                    'durability': 'async',
+                    'sync_interval': '30s',
+                    'flush_threshold_size': '1024mb'
+                }
+            },
         }
 
 
@@ -52,9 +56,8 @@ def generate_actions(file_name):
         for line in lines:
             data = json.loads(line)
             properties_to_extract = ["id", "cited_by_count", "counts_by_year", "display_name",
-                                     "works_count", "last_known_institution"]
+                                     "works_count", "last_known_institution", "user_id"]
             data = {key: data[key] for key in properties_to_extract}
-            data['user_id'] = None
             document = {
                 '_index': 'author',
                 '_op_type': 'index',
@@ -65,7 +68,7 @@ def generate_actions(file_name):
 
 def run(file_name):
     actions = generate_actions(file_name)
-    for success, info in parallel_bulk(client=client, actions=actions, thread_count=6, queue_size=6, chunk_size=5000):
+    for success, info in parallel_bulk(client=client, actions=actions, thread_count=8, queue_size=8, chunk_size=5000):
         if not success:
             print(f'Failed to index document: {info}')
 

@@ -91,11 +91,15 @@ class WorkDocument(Document):
         settings = {
             'number_of_shards': 40,
             'number_of_replicas': 0,
-            'index.mapping.nested_objects.limit': 200000,
-            'index.refresh_interval': -1,
-            'index.translog.durability': 'async',
-            'index.translog.sync_interval': '300s',
-            'index.translog.flush_threshold_size': '512mb',
+            'index': {
+                'mapping.nested_objects.limit': 100000,
+                'refresh_interval': -1,
+                'translog': {
+                    'durability': 'async',
+                    'sync_interval': '30s',
+                    'flush_threshold_size': '1024mb'
+                }
+            },
         }
 
 

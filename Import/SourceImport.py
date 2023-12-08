@@ -34,6 +34,7 @@ class SourceDocument(Document):
     updated_date = Date()
     works_api_url = Keyword(index=False)
     works_count = Integer()
+    img_url = Keyword(index=False)
 
     class Index:
         name = 'source'
@@ -54,7 +55,7 @@ def run(client, file_name):
             properties_to_extract = ["id", "cited_by_count", "counts_by_year", "display_name",
                                      "homepage_url", "host_organization", "host_organization_lineage",
                                      "host_organization_name", "summary_stats", "type", "updated_date",
-                                     "works_api_url", "works_count"]
+                                     "works_api_url", "works_count", "img_url"]
             data = {key: data.get(key) for key in properties_to_extract}
             if data.get('id'):
                 i += 1
