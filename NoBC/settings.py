@@ -94,8 +94,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "NoBC.wsgi.application"
 
-# Database
-# https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
 DATABASES = {
     "default": {
@@ -129,7 +127,7 @@ INSTALLED_APPS = [
 
 ELASTICSEARCH_DSL = {
     'default': {
-        'hosts': '127.0.0.1:9200',
+        'hosts': '123.60.99.8:9200',
         'timeout': 60,
     }
 }

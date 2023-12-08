@@ -27,7 +27,7 @@ class ConceptDocument(Document):
         }
     )
     level = Integer()
-    display_name = Text()
+    display_name = Text(analyzer='my_edge_ngram_analyzer')
     works_count = Integer()
     image_url = Text()
     ancestors = Nested(
@@ -54,14 +54,32 @@ class ConceptDocument(Document):
         }
     )
     works_api_url = Text()
-
+    chinese_display_name = Text(analyzer='my_edge_ngram_analyzer')
+    discription = Text()
+    chinese_discription = Text()
 
     class Index:
         name = 'concept'
         settings = {
             'number_of_shards': 5,
             'number_of_replicas': 0,
+            'analysis': {
+                'analyzer': {
+                    'my_edge_ngram_analyzer': {
+                        'type': 'custom',
+                        'tokenizer': 'my_edge_ngram_tokenizer'
+                    }
+                },
+                'tokenizer': {
+                    'my_edge_ngram_tokenizer': {
+                        'type': 'edge_ngram',
+                        'min_gram': 2,
+                        'max_gram': 10,
+                    }
+                }
+            }
         }
+
 
 
 def run(client, file_name):
@@ -72,9 +90,32 @@ def run(client, file_name):
         start_time = time.perf_counter()
         for line in file:
             data = json.loads(line)
-            properties_to_extract = ["id", "cited_by_count", "counts_by_year", "summary_stats", "level", "display_name", "works_count", "image_url", "ancestors",
-            "related_concepts", "counts_by_year", "works_api_url"]
+            international = data.get('international', {})
+            data['chinese_display_name'] = ''
+            data['description'] = ''
+            data['chinese_description'] = ''
+            if international:
+                display_name = international.get('display_name')
+                description = international.get('description')
+
+                if display_name:
+                    data['chinese_display_name'] = display_name.get('zh-cn', '')
+                    if not data['chinese_display_name']:
+                        data['chinese_display_name'] = display_name.get('zh', '')
+                if description:
+                    data['description'] = description.get('en', '')
+                    data['chinese_description'] = description.get('zh-cn', '')
+                    if not data['chinese_description']:
+                        data['chinese_description'] = description.get('zh', '')
+                        if not data['chinese_description']:
+                            data['chinese_description'] = description.get('zh-hans', '')
+
+            properties_to_extract = ["id", "cited_by_count", "counts_by_year", "summary_stats", "level", "display_name",
+                                     "works_count", "image_url", "ancestors",
+                                     "related_concepts", "counts_by_year", "works_api_url", "chinese_display_name",
+                                     "description", "chinese_description"]
             data = {key: data.get(key) for key in properties_to_extract}
+
             if data.get('id'):
                 i += 1
                 data_list.append({
@@ -90,7 +131,7 @@ def run(client, file_name):
                         print(response)
                 data_list = []
                 end_time1 = time.time()
-                print("circle {} process time = {}s".format(int(i/5000), end_time1-start_time1))
+                print("circle {} process time = {}s".format(int(i / 5000), end_time1 - start_time1))
         if data_list:
             start_time1 = time.time()
             i += 1
@@ -100,7 +141,9 @@ def run(client, file_name):
             end_time1 = time.time()
             print("circle {} process time = {}s".format(int(i / 5000), end_time1 - start_time1))
         end_time = time.perf_counter()
-        print("finished indexing file {} process time= {} min, end at {}".format(file_name, (end_time-start_time)/60, datetime.now()))
+        print(
+            "finished indexing file {} process time= {} min, end at {}".format(file_name, (end_time - start_time) / 60,
+                                                                               datetime.now()))
 
 
 if __name__ == "__main__":
