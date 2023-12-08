@@ -31,9 +31,9 @@ services:
     environment:
       - "MYSQL_ROOT_PASSWORD=root"
     volumes:
-      - /j/mysql/conf:/etc/mysql/conf.d
-      - /j/mysql/logs:/var/log/mysql
-      - /j/mysql/data:/var/lib/mysql
+      - /C/Users/W/mysql/conf:/etc/mysql/conf.d
+      - /C/Users/W/mysql/logs:/var/log/mysql
+      - /C/Users/W/mysql/data:/var/lib/mysql
     ports:
       - 3306:3306
 
@@ -73,13 +73,15 @@ services:
   celery_worker:
       build: .
       image: celery
-      command: celery -A NoBC-Academic-true worker --loglevel=info
+      command:  bash -c "cd /celery_sample && celery -A NoBC worker --loglevel=info"
+      volumes:
+          - .:/celery_sample
       depends_on:
           - rabbitmq
           - redis
       environment:
           - CELERY_BROKER_URL=pyamqp://rabbit:123456@localhost//
-          - CELERY_RESULT_BACKEND=redis://127.0.0.1:6379/1
+          - CELERY_BACKEND=redis://127.0.0.1:6379/1
 
     
 

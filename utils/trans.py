@@ -11,6 +11,7 @@ import json
 from hashlib import md5
 
 def trans(query):
+    print(query)
     # Set your own appid/appkey.
     appid = '20231206001902509'
     appkey = 'IkFC0S_jYaAkJoillGyG'
@@ -36,8 +37,10 @@ def trans(query):
 
     # Send request
     r = requests.post(url, params=payload, headers=headers)
+    json = r.json()
+    print(json)
     result = r.json().get('trans_result')[0].get('dst')
-    print(result)
+
 
     return result
 

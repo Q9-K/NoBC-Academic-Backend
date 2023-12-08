@@ -24,8 +24,11 @@ def get_level_0(request):
     # 执行搜索
     response = s.execute()
 
+    # 获取搜索结果
+    results = response.hits.hits
+
     # 返回搜索结果
-    return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': response.to_dict().get('hits').get('hits')})
+    return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
 
 
 def get_tree(request):
@@ -63,3 +66,52 @@ def get_tree(request):
         }
 
     return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': subdomains})
+
+
+def search_concept_by_keyword(request):
+    keyword = request.GET.get('keyword')
+    print(keyword)
+    language = request.GET.get('language', 0)
+    query = {}
+    if language == '0':
+        query = {
+            "query": {
+                "match": {
+                    "display_name": {
+                        "query": keyword,
+                        "fuzziness": "AUTO"
+                    }
+                }
+            },
+            "_source": ["id", "display_name"],
+            "sort": [
+                {"_score": {"order": "desc"}}
+            ],
+            "size": 100
+        }
+    else:
+        query = {
+            "query": {
+                "match": {
+                    "chinese_display_name": {
+                        "query": keyword,
+                        "fuzziness": "AUTO"
+                    }
+                }
+            },
+            "_source": ["id", "chinese_display_name","summary_stats.h_index"],
+            "sort": [
+                {
+                    "summary_stats.h_index": {
+                        "order": "desc",
+                        "nested": {
+                            "path": "summary_stats"
+                        }
+                    }
+                }
+            ],
+            "size": 100
+        }
+    res = client.search(index="concept", body=query)
+
+    return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': res['hits']['hits']})
