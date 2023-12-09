@@ -56,8 +56,9 @@ def generate_actions(file_name):
         for line in lines:
             data = json.loads(line)
             properties_to_extract = ["id", "cited_by_count", "counts_by_year", "display_name",
-                                     "works_count", "last_known_institution", "user_id"]
+                                     "works_count", "last_known_institution"]
             data = {key: data[key] for key in properties_to_extract}
+            data['user_id'] = None
             document = {
                 '_index': 'author',
                 '_op_type': 'index',
