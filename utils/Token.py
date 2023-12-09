@@ -1,5 +1,6 @@
 from django.conf import settings
 import jwt
+
 def generate_token(dict,outdate_time):
     dict['exp'] = outdate_time
     value = jwt.encode(dict=dict,key=settings.JWT_KEY)

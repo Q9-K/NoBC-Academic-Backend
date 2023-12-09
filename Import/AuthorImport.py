@@ -1,13 +1,14 @@
 import os
 import json
-import time
 import gzip
-from tqdm import tqdm
 from datetime import datetime
 from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested
 from elasticsearch.helpers import parallel_bulk
+from elasticsearch import Elasticsearch
 
-cl = connections.create_connection(hosts=['localhost'])
+connections.create_connection(hosts=['localhost'], timeout=60)
+client = Elasticsearch(hosts=['localhost'], timeout=60)
+
 class ScholarDocument(Document):
     id = Keyword()
     cited_by_count = Integer()
@@ -18,30 +19,36 @@ class ScholarDocument(Document):
             "cited_by_count": Integer(),
         }
     )
-    display_name = Text()
+    display_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
     works_count = Integer()
     last_known_institution = Nested(
         properties={
             "id": Keyword(),
-            "ror": Keyword(),
-            "display_name": Keyword(),
+            "ror": Keyword(index=False),
+            "display_name": Text(),
             "country_code": Keyword(),
-            "type": Keyword(),
-            "lineage": Keyword(multi=True)
+            "type": Keyword(index=False),
+            "lineage": Keyword(index=False)
         }
     )
+    user_id = Keyword()
 
     class Index:
         name = 'author'
         settings = {
             'number_of_shards': 5,
             'number_of_replicas': 0,
-            'index.mapping.nested_objects.limit': 500000,
-            'index.refresh_interval': -1,
-            'index.translog.durability': 'async',
-            'index.translog.sync_interval': '300s',
-            'index.translog.flush_threshold_size': '512mb',
+            'index': {
+                'mapping.nested_objects.limit': 100000,
+                'refresh_interval': -1,
+                'translog': {
+                    'durability': 'async',
+                    'sync_interval': '30s',
+                    'flush_threshold_size': '1024mb'
+                }
+            },
         }
+
 
 def generate_actions(file_name):
     with gzip.open(file_name, 'rt', encoding='utf-8') as file:
@@ -51,6 +58,7 @@ def generate_actions(file_name):
             properties_to_extract = ["id", "cited_by_count", "counts_by_year", "display_name",
                                      "works_count", "last_known_institution"]
             data = {key: data[key] for key in properties_to_extract}
+            data['user_id'] = None
             document = {
                 '_index': 'author',
                 '_op_type': 'index',
@@ -61,7 +69,7 @@ def generate_actions(file_name):
 
 def run(file_name):
     actions = generate_actions(file_name)
-    for success, info in parallel_bulk(client=cl, actions=actions, thread_count=6, queue_size=6, chunk_size=5000):
+    for success, info in parallel_bulk(client=client, actions=actions, thread_count=8, queue_size=8, chunk_size=5000):
         if not success:
             print(f'Failed to index document: {info}')
 
@@ -73,7 +81,6 @@ def process_files(folder):
 
 
 if __name__ == "__main__":
-    cl = connections.create_connection(hosts=['localhost'])
     ScholarDocument.init()
     start_time = datetime.now()
     print("Start insert to ElasticSearch at {}".format(datetime.now()))

@@ -1,7 +1,6 @@
 import os
 import json
 import time
-import sys
 import gzip
 from tqdm import tqdm
 from datetime import datetime
@@ -12,22 +11,22 @@ from elasticsearch.helpers import parallel_bulk
 class InstitutionDocument(Document):
     id = Keyword()
     cited_by_count = Integer()
-    display_name = Text()
-    homepage_url = Text()
-    image_url = Text()
-    lineage = Text(multi=True)
+    display_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
+    homepage_url = Keyword(index=False)
+    image_url = Keyword(index=False)
+    lineage = Keyword(index=False)
     ror = Keyword()
     type = Keyword()
-    works_api_url = Text()
-    works_count = Text()
+    works_api_url = Keyword(index=False)
+    works_count = Integer()
     associated_institutions = Nested(
         properties={
             "id": Keyword(),
             "ror": Keyword(),
-            "display_name": Keyword(),
+            "display_name": Text(),
             "country_code": Keyword(),
             "type": Keyword(),
-            "relationship": Text(),
+            "relationship": Keyword(),
         }
     )
     counts_by_year = Nested(
@@ -39,11 +38,11 @@ class InstitutionDocument(Document):
     )
     geo = Nested(
         properties={
-            "city": Text(),
+            "city": Keyword(),
             "geonames_city_id": Keyword(),
-            "region": Text(),
+            "region": Keyword(),
             "country_code": Keyword(),
-            "country": Text(),
+            "country": Keyword(),
             "latitude": Double(),
             "longitude": Double(),
         }
