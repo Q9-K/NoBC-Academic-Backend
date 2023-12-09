@@ -83,9 +83,16 @@ def search_concept_by_keyword(request):
                     }
                 }
             },
-            "_source": ["id", "display_name"],
+            "_source": ["id", "display_name","summary_stats.h_index"],
             "sort": [
-                {"_score": {"order": "desc"}}
+                {
+                    "summary_stats.h_index": {
+                        "order": "desc",
+                        "nested": {
+                            "path": "summary_stats"
+                        }
+                    }
+                }
             ],
             "size": 100
         }
@@ -112,6 +119,11 @@ def search_concept_by_keyword(request):
             ],
             "size": 100
         }
-    res = client.search(index="concept", body=query)
 
-    return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': res['hits']['hits']})
+    results=[]
+    response = client.search(index="concept", body=query)
+    for hit in response['hits']['hits']:
+        # 从每个文档的 '_source' 字段中提取数据
+        source_data = hit['_source']
+        results.append(source_data)
+    return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
