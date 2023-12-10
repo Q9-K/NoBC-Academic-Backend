@@ -7,6 +7,7 @@ from tqdm import tqdm
 from datetime import datetime
 from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Float
 from elasticsearch.helpers import parallel_bulk
+from path import data_path
 
 
 class PublisherDocument(Document):
@@ -71,7 +72,7 @@ def run(client, file_name):
                         print(response)
                 data_list = []
                 end_time1 = time.time()
-                print("circle {} process time = {}s".format(int(i/5000), end_time1-start_time1))
+                print("circle {} process time = {}s".format(int(i / 5000), end_time1 - start_time1))
         if data_list:
             start_time1 = time.time()
             i += 1
@@ -81,7 +82,9 @@ def run(client, file_name):
             end_time1 = time.time()
             print("circle {} process time = {}s".format(int(i / 5000), end_time1 - start_time1))
         end_time = time.perf_counter()
-        print("finished indexing file {} process time= {} min, end at {}".format(file_name, (end_time-start_time)/60, datetime.now()))
+        print(
+            "finished indexing file {} process time= {} min, end at {}".format(file_name, (end_time - start_time) / 60,
+                                                                               datetime.now()))
 
 
 if __name__ == "__main__":
@@ -93,7 +96,7 @@ if __name__ == "__main__":
     print("Start insert to ElasticSearch at {}".format(datetime.now()))
     # original_stdout = sys.stdout
     # sys.stdout = file
-    root_path = '/data/openalex-snapshot/data/publishers'
+    root_path = data_path + 'publishers'
     # 获取所有子文件夹
     sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
     for sub_folder in tqdm(sub_folders):

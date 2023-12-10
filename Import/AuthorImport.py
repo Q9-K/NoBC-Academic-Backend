@@ -5,6 +5,7 @@ from datetime import datetime
 from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested
 from elasticsearch.helpers import parallel_bulk
 from elasticsearch import Elasticsearch
+from path import data_path
 
 connections.create_connection(hosts=['localhost'], timeout=60)
 client = Elasticsearch(hosts=['localhost'], timeout=60)
@@ -84,7 +85,7 @@ if __name__ == "__main__":
     ScholarDocument.init()
     start_time = datetime.now()
     print("Start insert to ElasticSearch at {}".format(datetime.now()))
-    root_path = '/data/openalex-snapshot/data/authors'
+    root_path = data_path+'authors'
     # 获取所有子文件夹
     sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
     for sub_folder in sub_folders:
