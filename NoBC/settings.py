@@ -94,17 +94,16 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "NoBC.wsgi.application"
 
-
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.mysql",
-#         "NAME": "NoBC",
-#         "USER": MYSQL_USER,
-#         "PASSWORD": MYSQL_PASSWORD,
-#         "HOST": MYSQL_HOST,
-#         "PORT": '3306',
-#     }
-# }
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": "NoBC",
+        "USER": MYSQL_USER,
+        "PASSWORD": MYSQL_PASSWORD,
+        "HOST": MYSQL_HOST,
+        "PORT": '3306',
+    }
+}
 INSTALLED_APPS = [
     "corsheaders",
     "django.contrib.admin",
@@ -122,17 +121,8 @@ INSTALLED_APPS = [
     'institution',
     'source',
     'concept',
-    # 'django_elasticsearch_dsl',
 ]
 
-ELASTICSEARCH_DSL = {
-    'default': {
-        'hosts': '123.60.99.8:9200',
-        'timeout': 60,
-    }
-}
-ELASTICSEARCH_DSL_SIGNAL_PROCESSOR = 'django_elasticsearch_dsl.signals.RealTimeSignalProcessor'
-ELASTICSEARCH_DSL_PARALLEL = True
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
 
@@ -187,7 +177,12 @@ CELERY_BROKER_URL = 'pyamqp://rabbit:123456@localhost//'
 CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/1'
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
-
 connections.configure(
-    default={'host': ELAS_HOST}
+    default={
+        'host': ELAS_HOST,
+        'http_auth': (ELAS_USER, ELAS_PASSWORD),
+        'scheme': 'http',
+        'verify_certs': False,
+        'timeout': 60,
+    }
 )
