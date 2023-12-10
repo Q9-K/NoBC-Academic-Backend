@@ -166,16 +166,16 @@ EMAIL_HOST_PASSWORD = BUAA_MAIL_TOKEN
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379/1",
+        "LOCATION": "redis://{}:6379/0".format(REDIS_HOST),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
     }
 }
 
-CELERY_BROKER_URL = 'pyamqp://rabbit:123456@localhost//'
-CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/1'
-CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+# CELERY_BROKER_URL = 'pyamqp://rabbit:123456@localhost//'
+# CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/1'
+# CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 connections.configure(
     default={

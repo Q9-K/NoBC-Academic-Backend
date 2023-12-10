@@ -17,7 +17,7 @@ def allowed_methods(methods):
                 return JsonResponse({
                     'code': METHOD_ERROR,
                     'error': True,
-                    'message': 'allowed type(s) are {}'.format(', '.join(methods)),
+                    'message': 'allowed method(s) are [{}]'.format(', '.join(methods)),
                     'data': {},
                 })
             return view_func(request, *args, **kwargs)
