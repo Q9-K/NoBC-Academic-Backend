@@ -26,49 +26,49 @@ services:
 
   redis:
       image: redis:7.0.0 # 指定服务镜像，最好是与之前下载的redis配置文件保持一致
-      container_name: my_redis # 容器名称
+      container_name: redis # 容器名称
       restart: always # 重启方式
       environment:
           - TZ=Asia/Shanghai # 设置时区
       volumes: # 配置数据卷
-          - /c/redisdata:/data
-          - /c/redis-7.0.0/redis.conf:/etc/redis/redis.conf
-          - /c/redislogs:/logs
+          - /data/redis/data:/data
+          - /data/redis/conf/redis.conf:/etc/redis/redis.conf
+          - /data/redis/logs:/logs
       ports: # 映射端口
           - "6379:6379"
-      sysctls: # 设置容器中的内核参数
-          - net.core.somaxconn=1024
+#      sysctls: # 设置容器中的内核参数
+#          - net.core.somaxconn=1024
       #  - vm.overcommit_memory=1
       privileged: true # 使用该参数，container内的root拥有真正的root权限。否则，container内的root只是外部的一个普通用户权限
 
-  rabbitmq:
-      restart: always
-      image: rabbitmq:management
-      container_name: rabbitm
-      hostname: rabbit
-      ports:
-          - 5672:5672
-          - 15672:15672
-      environment:
-          TZ: Asia/Shanghai
-          RABBITMQ_DEFAULT_USER: rabbit
-          RABBITMQ_DEFAULT_PASS: 123456
-      volumes:
-          - /C/rabbitmq/data:/var/lib/rabbitmq
-          - /C/rabbitmq/conf:/etc/rabbitmq
+#  rabbitmq:
+#      restart: always
+#      image: rabbitmq:management
+#      container_name: rabbitm
+#      hostname: rabbit
+#      ports:
+#          - 5672:5672
+#          - 15672:15672
+#      environment:
+#          TZ: Asia/Shanghai
+#          RABBITMQ_DEFAULT_USER: rabbit
+#          RABBITMQ_DEFAULT_PASS: 123456
+#      volumes:
+#          - /C/rabbitmq/data:/var/lib/rabbitmq
+#          - /C/rabbitmq/conf:/etc/rabbitmq
 
-  celery_worker:
-      build: .
-      image: celery
-      command:  bash -c "cd /celery_sample && celery -A NoBC worker --loglevel=info"
-      volumes:
-          - .:/celery_sample
-      depends_on:
-          - rabbitmq
-          - redis
-      environment:
-          - CELERY_BROKER_URL=pyamqp://rabbit:123456@localhost//
-          - CELERY_BACKEND=redis://127.0.0.1:6379/1
+#  celery_worker:
+#      build: .
+#      image: celery
+#      command:  bash -c "cd /celery_sample && celery -A NoBC worker --loglevel=info"
+#      volumes:
+#          - .:/celery_sample
+#      depends_on:
+#          - rabbitmq
+#          - redis
+#      environment:
+#          - CELERY_BROKER_URL=pyamqp://rabbit:123456@localhost//
+#          - CELERY_BACKEND=redis://127.0.0.1:6379/1
 
     
 
