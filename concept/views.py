@@ -1,3 +1,7 @@
+import heapq
+
+from celery import shared_task
+from django.core.cache import cache
 from django.http import JsonResponse
 from elasticsearch import Elasticsearch
 from elasticsearch_dsl import Search
@@ -120,10 +124,23 @@ def search_concept_by_keyword(request):
             "size": 100
         }
 
-    results=[]
+    results = []
     response = client.search(index="concept", body=query)
     for hit in response['hits']['hits']:
-        # 从每个文档的 '_source' 字段中提取数据
         source_data = hit['_source']
         results.append(source_data)
+
+
     return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
+
+
+@shared_task
+def process_remaining_results(all_results, username):
+    # 对所有结果进行排序
+    sorted_results = sorted(all_results, key=lambda x: x['summary_stats']['h_index'], reverse=True)
+
+    # 将排序后的结果按页存储在缓存中
+    for i in range(20, len(sorted_results), 20):  # 从第二页开始
+        page_number = i // 20 + 2
+        cache_key = f'{username}_sorted_results_page_{page_number}'
+        cache.set(cache_key, sorted_results[i:i + 20])

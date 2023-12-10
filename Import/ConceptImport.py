@@ -29,7 +29,7 @@ class ConceptDocument(Document):
         }
     )
     level = Integer()
-    display_name = Text(analyzer='my_edge_ngram_analyzer')
+    display_name = Text(analyzer='my_edge_ngram_analyzer',search_analyzer='my_edge_ngram_analyzer')
     works_count = Integer()
     image_url = Keyword()
     ancestors = Nested(
@@ -56,7 +56,7 @@ class ConceptDocument(Document):
         }
     )
     works_api_url = Text()
-    chinese_display_name = Text(analyzer='my_edge_ngram_analyzer')
+    chinese_display_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
     discription = Text()
     chinese_discription = Text()
 
