@@ -9,7 +9,7 @@ from path import data_path
 
 connections.create_connection(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
 client = Elasticsearch(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
-INDEX_NAME = 'work-test-suggestion'
+INDEX_NAME = 'work'
 
 
 class WorkDocument(Document):
@@ -30,24 +30,6 @@ class WorkDocument(Document):
             "countries": Keyword(index=False)
         }
     )
-    best_oa_location = Nested(
-        properties={
-            "is_oa": Boolean(),
-            "landing_page_url": Keyword(index=False),
-            "pdf_url": Keyword(index=False),
-            "source": Nested(
-                properties={
-                    "id": Keyword(),
-                    "display_name": Text(),
-                    "issn_l": Keyword(index=False),
-                    "issn": Keyword(index=False),
-                    "host_organization": Keyword(index=False),
-                    "type": Keyword(index=False),
-                }
-            ),
-            "license": Keyword(index=False),
-            "version": Keyword(index=False),
-        })
     cited_by_count = Integer()
     concepts = Nested(
         properties={
@@ -65,7 +47,6 @@ class WorkDocument(Document):
             "cited_by_count": Integer(),
         }
     )
-    created_date = Date()
     language = Keyword()
     type = Keyword()
     publication_date = Date()
@@ -154,7 +135,7 @@ if __name__ == "__main__":
     print("Start insert to ElasticSearch at {}".format(start_time))
     root_path = data_path + 'works'
     # 获取所有子文件夹
-    sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))][0:10]
+    sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
 
     for sub_folder in sub_folders:
         folder_path = os.path.join(root_path, sub_folder)
