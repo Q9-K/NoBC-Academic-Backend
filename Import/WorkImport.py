@@ -95,9 +95,9 @@ def generate_actions(file_name):
         lines = file.readlines()
         for line in lines:
             data = json.loads(line)
-            properties_to_extract = ["id", "title", "authorships", "best_oa_location",
+            properties_to_extract = ["id", "title", "authorships",
                                      "cited_by_count", "concepts", "counts_by_year",
-                                     "created_date", "language", "type", "publication_date",
+                                     "language", "type", "publication_date",
                                      "referenced_works", "related_works", "locations"]
             abstract = data.get('abstract_inverted_index')
             data = {key: data[key] for key in properties_to_extract}
