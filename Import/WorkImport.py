@@ -7,7 +7,7 @@ from elasticsearch.helpers import parallel_bulk
 from elasticsearch import Elasticsearch
 from path import data_path
 
-connections.create_connection(hosts=['localhost'], timeout=60)
+connections.create_connection(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
 client = Elasticsearch(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
 INDEX_NAME = 'work-test-suggestion'
 
