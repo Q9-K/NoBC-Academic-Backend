@@ -8,7 +8,8 @@ from elasticsearch import Elasticsearch
 from path import data_path
 
 connections.create_connection(hosts=['localhost'], timeout=60)
-client = Elasticsearch(hosts=['localhost'], timeout=60)
+client = Elasticsearch(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
+INDEX_NAME = 'work-test-suggestion'
 
 
 class WorkDocument(Document):
@@ -90,7 +91,7 @@ class WorkDocument(Document):
     )
 
     class Index:
-        name = 'work'
+        name = INDEX_NAME
         settings = {
             'number_of_shards': 40,
             'number_of_replicas': 0,
@@ -123,7 +124,7 @@ def generate_actions(file_name):
                 positions.sort(key=lambda x: x[1])
                 data['abstract'] = ' '.join([word for word, _ in positions])
             document = {
-                '_index': 'work',
+                '_index': INDEX_NAME,
                 '_op_type': 'index',
                 '_source': data
             }
@@ -132,7 +133,7 @@ def generate_actions(file_name):
 
 def run(file_name):
     actions = generate_actions(file_name)
-    for success, info in parallel_bulk(client=client, actions=actions, thread_count=8, queue_size=8, chunk_size=5000):
+    for success, info in parallel_bulk(client=client, actions=actions, thread_count=8, queue_size=20, chunk_size=5000):
         if not success:
             print(f'Failed to index document: {info}')
 
@@ -151,7 +152,7 @@ if __name__ == "__main__":
     print("Start insert to ElasticSearch at {}".format(start_time))
     root_path = data_path + 'works'
     # 获取所有子文件夹
-    sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
+    sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))][0:10]
 
     for sub_folder in sub_folders:
         folder_path = os.path.join(root_path, sub_folder)

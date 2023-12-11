@@ -27,7 +27,7 @@ services:
   redis:
       image: redis:7.0.0 # 指定服务镜像，最好是与之前下载的redis配置文件保持一致
       container_name: redis # 容器名称
-      restart: always # 重启方式
+      restart: on-failure # 重启方式
       environment:
           - TZ=Asia/Shanghai # 设置时区
       volumes: # 配置数据卷
