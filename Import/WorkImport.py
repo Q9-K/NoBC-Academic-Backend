@@ -76,7 +76,7 @@ class WorkDocument(Document):
     class Index:
         name = INDEX_NAME
         settings = {
-            'number_of_shards': 40,
+            'number_of_shards': 20,
             'number_of_replicas': 0,
             'index': {
                 'mapping.nested_objects.limit': 100000,
