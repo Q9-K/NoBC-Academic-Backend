@@ -2,7 +2,7 @@ import json
 import os
 import gzip
 from datetime import datetime
-from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Date, Float, Boolean
+from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Date, Float, Boolean, Completion
 from elasticsearch.helpers import parallel_bulk
 from elasticsearch import Elasticsearch
 from path import data_path
@@ -14,7 +14,9 @@ INDEX_NAME = 'work-test-suggestion'
 
 class WorkDocument(Document):
     id = Keyword()
-    title = Text(analyzer='ik_smart', search_analyzer='ik_smart')
+    title = Text(analyzer='ik_max_word', search_analyzer='ik_smart', fields={
+        'suggestion': Completion(analyzer='ik_max_word')
+    })
     authorships = Nested(
         properties={
             "author": Nested(
@@ -69,7 +71,7 @@ class WorkDocument(Document):
     publication_date = Date()
     referenced_works = Keyword(index=False)
     related_works = Keyword(index=False)
-    abstract = Text(analyzer='ik_smart', search_analyzer='ik_smart')
+    abstract = Text(analyzer='ik_max_word', search_analyzer='ik_smart')
     locations = Nested(
         properties={
             "is_oa": Boolean(),
