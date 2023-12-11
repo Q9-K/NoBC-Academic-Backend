@@ -83,7 +83,7 @@ class WorkDocument(Document):
                 'refresh_interval': -1,
                 'translog': {
                     'durability': 'async',
-                    'sync_interval': '30s',
+                    'sync_interval': '120s',
                     'flush_threshold_size': '1024mb'
                 }
             },
