@@ -93,8 +93,13 @@ def run(client, file_name):
         print("start indexing file {}".format(file_name))
         start_time = time.perf_counter()
         for line in file:
-            data = json.loads(line)
-            international = data.get('international', {})
+            origin_data = json.loads(line)
+            properties_to_extract = ["id", "cited_by_count", "display_name", "homepage_url", "image_url", "lineage",
+                                     "ror", "type",
+                                     "works_api_url", "works_count", "associated_institutions", "counts_by_year", "geo",
+                                     "summary_stats"]
+            data = {key: origin_data.get(key) for key in properties_to_extract}
+            international = origin_data.get('international', {})
             data['chinese_display_name'] = ''
             data['description'] = ''
             data['chinese_description'] = ''
@@ -113,11 +118,6 @@ def run(client, file_name):
                         data['chinese_description'] = description.get('zh', '')
                         if not data['chinese_description']:
                             data['chinese_description'] = description.get('zh-hans', '')
-            properties_to_extract = ["id", "cited_by_count", "display_name", "homepage_url", "image_url", "lineage",
-                                     "ror", "type",
-                                     "works_api_url", "works_count", "associated_institutions", "counts_by_year", "geo",
-                                     "summary_stats"]
-            data = {key: data.get(key) for key in properties_to_extract}
             if data.get('id'):
                 i += 1
                 data_list.append({
