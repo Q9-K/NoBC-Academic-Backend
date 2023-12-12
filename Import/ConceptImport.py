@@ -12,6 +12,7 @@ from path import data_path
 connections.create_connection(hosts=['localhost'], timeout=60)
 client = Elasticsearch(hosts=['localhost'], timeout=60)
 
+
 class ConceptDocument(Document):
     id = Keyword()
     cited_by_count = Integer()
@@ -30,7 +31,7 @@ class ConceptDocument(Document):
         }
     )
     level = Integer()
-    display_name = Text(analyzer='my_edge_ngram_analyzer',search_analyzer='my_edge_ngram_analyzer')
+    display_name = Text(analyzer='my_edge_ngram_analyzer', search_analyzer='my_edge_ngram_analyzer')
     works_count = Integer()
     image_url = Keyword()
     ancestors = Nested(
@@ -47,13 +48,6 @@ class ConceptDocument(Document):
             "display_name": Keyword(),
             "level": Integer(),
             "score": Double(),
-        }
-    )
-    counts_by_year = Nested(
-        properties={
-            "year": Integer(),
-            "works_count": Integer(),
-            "cited_by_count": Integer(),
         }
     )
     works_api_url = Text()
@@ -82,7 +76,6 @@ class ConceptDocument(Document):
                 }
             }
         }
-
 
 
 def run(file_name):

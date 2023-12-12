@@ -8,10 +8,11 @@ from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nes
 from elasticsearch.helpers import parallel_bulk
 from path import data_path
 
+
 class InstitutionDocument(Document):
     id = Keyword()
     cited_by_count = Integer()
-    display_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
+    display_name = Text(analyzer='my_edge_ngram_analyzer', search_analyzer='my_edge_ngram_analyzer')
     homepage_url = Keyword(index=False)
     image_url = Keyword(index=False)
     lineage = Keyword(index=False)
@@ -54,12 +55,29 @@ class InstitutionDocument(Document):
             "i10_index": Integer()
         }
     )
+    chinese_display_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
+    chinese_description = Text()
 
     class Index:
         name = 'institution'
         settings = {
             'number_of_shards': 5,
             'number_of_replicas': 0,
+            'analysis': {
+                'analyzer': {
+                    'my_edge_ngram_analyzer': {
+                        'type': 'custom',
+                        'tokenizer': 'my_edge_ngram_tokenizer'
+                    }
+                },
+                'tokenizer': {
+                    'my_edge_ngram_tokenizer': {
+                        'type': 'edge_ngram',
+                        'min_gram': 2,
+                        'max_gram': 10,
+                    }
+                }
+            }
         }
 
 
@@ -71,8 +89,29 @@ def run(client, file_name):
         start_time = time.perf_counter()
         for line in file:
             data = json.loads(line)
-            properties_to_extract = ["id", "cited_by_count", "display_name", "homepage_url", "image_url", "lineage", "ror", "type",
-                                     "works_api_url", "works_count", "associated_institutions", "counts_by_year", "geo", "summary_stats"]
+            international = data.get('international', {})
+            data['chinese_display_name'] = ''
+            data['description'] = ''
+            data['chinese_description'] = ''
+            if international:
+                display_name = international.get('display_name')
+                description = international.get('description')
+
+                if display_name:
+                    data['chinese_display_name'] = display_name.get('zh-cn', '')
+                    if not data['chinese_display_name']:
+                        data['chinese_display_name'] = display_name.get('zh', '')
+                if description:
+                    data['description'] = description.get('en', '')
+                    data['chinese_description'] = description.get('zh-cn', '')
+                    if not data['chinese_description']:
+                        data['chinese_description'] = description.get('zh', '')
+                        if not data['chinese_description']:
+                            data['chinese_description'] = description.get('zh-hans', '')
+            properties_to_extract = ["id", "cited_by_count", "display_name", "homepage_url", "image_url", "lineage",
+                                     "ror", "type",
+                                     "works_api_url", "works_count", "associated_institutions", "counts_by_year", "geo",
+                                     "summary_stats"]
             data = {key: data.get(key) for key in properties_to_extract}
             if data.get('id'):
                 i += 1
