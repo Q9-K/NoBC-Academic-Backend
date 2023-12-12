@@ -1,5 +1,3 @@
-from pprint import pprint
-
 from elasticsearch_dsl import Search, connections, Q
 
 from NoBC.status_code import *
@@ -66,7 +64,6 @@ def getInstitutionList(request):
     if request.method == 'GET':
         # 获取参数,使用search_after分页,需要获取:
         # 每页大小size,上一页最后一个数据的sort字段(若为"",默认为第一页)
-        institutions = []
         # 默认id升序
         search = Search(using=ES_CONN, index='institution').query(Q('match_all')).sort('id')
         # 不需要after,使用(from, size)查询
@@ -79,8 +76,8 @@ def getInstitutionList(request):
 
 def getInstitutionDetail(request):
     """
-    获取机构详情
-    :param request: {method: GET, params: {id: int}}
+    获取指定机构详情
+    :param request: {method: GET, params: {id: int}} 其中id为指定机构的id
     :return: {code: int, msg: str, data: {}}
     """
     if request.method == 'GET':

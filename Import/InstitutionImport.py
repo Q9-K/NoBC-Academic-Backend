@@ -2,16 +2,22 @@ import os
 import json
 import time
 import gzip
+
+from elasticsearch import Elasticsearch
 from tqdm import tqdm
 from datetime import datetime
 from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Double
 from elasticsearch.helpers import parallel_bulk
 from path import data_path
 
+connections.create_connection(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
+client = Elasticsearch(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
+
+
 class InstitutionDocument(Document):
     id = Keyword()
     cited_by_count = Integer()
-    display_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
+    display_name = Text(analyzer='my_edge_ngram_analyzer', search_analyzer='my_edge_ngram_analyzer')
     homepage_url = Keyword(index=False)
     image_url = Keyword(index=False)
     lineage = Keyword(index=False)
@@ -54,12 +60,28 @@ class InstitutionDocument(Document):
             "i10_index": Integer()
         }
     )
+    chinese_display_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
 
     class Index:
         name = 'institution'
         settings = {
             'number_of_shards': 5,
             'number_of_replicas': 0,
+            'analysis': {
+                'analyzer': {
+                    'my_edge_ngram_analyzer': {
+                        'type': 'custom',
+                        'tokenizer': 'my_edge_ngram_tokenizer'
+                    }
+                },
+                'tokenizer': {
+                    'my_edge_ngram_tokenizer': {
+                        'type': 'edge_ngram',
+                        'min_gram': 2,
+                        'max_gram': 10,
+                    }
+                }
+            }
         }
 
 
@@ -70,10 +92,22 @@ def run(client, file_name):
         print("start indexing file {}".format(file_name))
         start_time = time.perf_counter()
         for line in file:
-            data = json.loads(line)
-            properties_to_extract = ["id", "cited_by_count", "display_name", "homepage_url", "image_url", "lineage", "ror", "type",
-                                     "works_api_url", "works_count", "associated_institutions", "counts_by_year", "geo", "summary_stats"]
-            data = {key: data.get(key) for key in properties_to_extract}
+            origin_data = json.loads(line)
+            properties_to_extract = ["id", "cited_by_count", "display_name", "homepage_url", "image_url", "lineage",
+                                     "ror", "type",
+                                     "works_api_url", "works_count", "associated_institutions", "counts_by_year", "geo",
+                                     "summary_stats"]
+            data = {key: origin_data.get(key) for key in properties_to_extract}
+            international = origin_data.get('international', {})
+            data['chinese_display_name'] = ''
+            if international:
+                display_name = international.get('display_name', None)
+                if display_name:
+                    data['chinese_display_name'] = display_name.get('zh-cn', None)
+                    if not data['chinese_display_name']:
+                        data['chinese_display_name'] = display_name.get('zh', None)
+                        if not data['chinese_display_name']:
+                            data['chinese_display_name'] = display_name.get('zh_hans', '')
             if data.get('id'):
                 i += 1
                 data_list.append({
@@ -105,7 +139,6 @@ def run(client, file_name):
 
 
 if __name__ == "__main__":
-    cl = connections.create_connection(hosts=['localhost'])
     InstitutionDocument.init()
     # print('日志路径', os.path.join(os.path.dirname(os.path.abspath(__file__)), "InstitutionImport.log"))
     #
@@ -121,6 +154,6 @@ if __name__ == "__main__":
         files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
         for zip_file in files:
             file_name = os.path.join(folder_path, zip_file)
-            run(cl, file_name)
+            run(client, file_name)
     # sys.stdout = original_stdout
     print("Finished insert to Elasticsearch at{}".format(datetime.now()))
