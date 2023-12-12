@@ -2,11 +2,16 @@ import os
 import json
 import time
 import gzip
+
+from elasticsearch import Elasticsearch
 from tqdm import tqdm
 from datetime import datetime
 from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Double
 from elasticsearch.helpers import parallel_bulk
 from path import data_path
+
+connections.create_connection(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
+client = Elasticsearch(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
 
 
 class InstitutionDocument(Document):
