@@ -205,3 +205,53 @@ def get_concept_by_id(request):
         results.append(source_data)
 
     return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
+
+
+def get_hot_concepts(request):
+    language = request.GET.get('language', 0)
+    query = {}
+    if language:
+        query = {
+            "size": 30,
+            "query": {
+                "match_all": {}
+            },
+            "sort": {
+                "_script": {
+                    "type": "number",
+                    "script": {
+                        "lang": "painless",
+                        "source": "doc['level'].value * 10 + doc['summary_stats.h_index'].value"
+                    },
+                    "order": "desc"
+                }
+            },
+            "_source": ["id", "chinese_display_name", "summary_stats.h_index"]
+        }
+    else:
+        query = {
+            "query": {
+                "bool": {
+                    "should": [
+                        {
+                            "bool": {
+                                "must_not": {
+                                    "exists": {
+                                        "field": "summary_stats.h_index"
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    "minimum_should_match": 1
+                }
+            }
+        }
+    response = client.search(index='concept', body=query)
+
+    results = []
+    for hit in response['hits']['hits']:
+        source_data = hit['_source']
+        results.append(source_data)
+
+    return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
