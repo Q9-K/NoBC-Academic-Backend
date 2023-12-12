@@ -4,7 +4,7 @@ import time
 import gzip
 from tqdm import tqdm
 from datetime import datetime
-from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Double
+from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Double, Object
 from elasticsearch.helpers import parallel_bulk
 from elasticsearch import Elasticsearch
 from path import data_path
@@ -23,7 +23,7 @@ class ConceptDocument(Document):
             "cited_by_count": Integer(),
         }
     )
-    summary_stats = Nested(
+    summary_stats = Object(
         properties={
             "2yr_mean_citedness": Double(),
             "h_index": Integer(),
