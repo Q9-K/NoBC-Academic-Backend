@@ -4,7 +4,7 @@ from celery import shared_task
 from django.core.cache import cache
 from django.http import JsonResponse
 from elasticsearch import Elasticsearch
-from elasticsearch_dsl import Search
+from elasticsearch_dsl import Search, Q
 from elasticsearch_dsl.connections import connections
 from NoBC.status_code import *
 from utils.view_decorator import allowed_methods
@@ -12,6 +12,7 @@ from utils.view_decorator import allowed_methods
 # Create your views here.
 
 client = connections.get_connection()
+
 
 @allowed_methods(['GET'])
 def get_level_0(request):
@@ -23,7 +24,7 @@ def get_level_0(request):
         return JsonResponse({'code': 10005, 'msg': '创建搜索对象失败'})
     # 添加过滤条件
     s = s.filter("term", level=0)
-    if(language):
+    if (language):
         s = s.source(['id', 'chinese_display_name'])
     else:
         s = s.source(['id', 'display_name'])
@@ -32,7 +33,7 @@ def get_level_0(request):
 
     response = response.to_dict()['hits']['hits']
 
-    results=[]
+    results = []
     for hit in response:
         source_data = hit['_source']
         results.append(source_data)
@@ -41,41 +42,72 @@ def get_level_0(request):
     return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
 
 
-def get_tree(request):
-    subdomains = {}
-    parent_id = request.GET.get('id')
-    current_year = 2023
-    # 第一层子领域查询
-    first_level_subdomains = client.search(
-        index="concept",
-        body={
-            "query": {"term": {"parent_id": parent_id}},
-            "sort": [{f"counts_by_year.{current_year}.works_count": {"order": "desc"}}],
-            "_source": ["id", "name", "counts_by_year"]
+def get_subdomains(request):
+    language = request.GET.get('language', 0)
+    id = request.GET.get('id')
+    # 构建查询
+    if language:
+        query = {
+            "query": {
+                "nested": {
+                    "path": "ancestors",
+                    "query": {
+                        "bool": {
+                            "must": [
+                                {"term": {"ancestors.id": id}},
+
+                            ]
+                        }
+                    }
+                }
+            },
+            "sort": [
+                {
+                    "summary_stats.h_index": {
+                        "order": "desc",
+                        "nested": {
+                            "path": "summary_stats"
+                        }
+                    }
+                }
+            ],
+            "_source": ["id", "chinese_display_name"]
         }
-    )
+    else:
+        query = {
+            "query": {
+                "nested": {
+                    "path": "ancestors",
+                    "query": {
+                        "bool": {
+                            "must": [
+                                {"term": {"ancestors.id": id}},
 
-    for domain in first_level_subdomains['hits']['hits']:
-        domain_id = domain['_source']['id']
-        domain_name = domain['_source']['name']
-
-        # 第二层子领域查询
-        second_level_subdomains = client.search(
-            index="concept",  # 索引名作为位置参数
-            body={  # 查询体作为关键字参数
-                "query": {
-                    "term": {"parent_id": domain_id}
-                },
-                "_source": ["id", "name"]
-            }
-        )
-
-        subdomains[domain_id] = {
-            "name": domain_name,
-            "subdomains": [sub['_source'] for sub in second_level_subdomains['hits']['hits']]
+                            ]
+                        }
+                    }
+                }
+            },
+            "sort": [
+                {
+                    "summary_stats.h_index": {
+                        "order": "desc",
+                        "nested": {
+                            "path": "summary_stats"
+                        }
+                    }
+                }
+            ],
+            "_source": ["id", "display_name"]
         }
+    response = client.search(index="concept", body=query)
 
-    return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': subdomains})
+    # 提取结果
+    results = []
+    for hit in response['hits']['hits']:
+        source_data = hit['_source']
+        results.append(source_data)
+    return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
 
 
 def search_concept_by_keyword(request):
@@ -93,7 +125,7 @@ def search_concept_by_keyword(request):
                     }
                 }
             },
-            "_source": ["id", "display_name","summary_stats.h_index"],
+            "_source": ["id", "display_name", "summary_stats.h_index"],
             "sort": [
                 {
                     "summary_stats.h_index": {
@@ -116,7 +148,7 @@ def search_concept_by_keyword(request):
                     }
                 }
             },
-            "_source": ["id", "chinese_display_name","summary_stats.h_index"],
+            "_source": ["id", "chinese_display_name", "summary_stats.h_index"],
             "sort": [
                 {
                     "summary_stats.h_index": {
@@ -136,8 +168,40 @@ def search_concept_by_keyword(request):
         source_data = hit['_source']
         results.append(source_data)
 
-
     return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
 
 
+def get_concept_by_id(request):
+    id = request.GET.get('id')
+    language = request.GET.get('language', 0)
+    query = {}
+    if language == '0':
+        query = {
+            "query": {
+                "term": {
+                    "id": id
+                }
+            },
+            "_source": ["id", "display_name", "level", "description", "summary_stats", "works_count", "cited_by_count",
+                        "related_concepts", "ancestors", "image_url", "counts_by_year"],
+            "size": 1
+        }
+    else:
+        query = {
+            "query": {
+                "term": {
+                    "id": id
+                }
+            },
+            "_source": ["id", "chinese_display_name", "level", "chinese_description", "summary_stats", "works_count",
+                        "cited_by_count", "related_concepts", "ancestors", "image_url", "counts_by_year"],
+            "size": 1
+        }
 
+    results = []
+    response = client.search(index="concept", body=query)
+    for hit in response['hits']['hits']:
+        source_data = hit['_source']
+        results.append(source_data)
+
+    return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
