@@ -40,6 +40,8 @@ class WorkDocument(Document):
             )
         }
     )
+    corresponding_author_ids = Keyword()
+    corresponding_institution_ids = Keyword()
     cited_by_count = Integer()
     concepts = Nested(
         properties={
@@ -106,10 +108,21 @@ def generate_actions(file_name):
         lines = file.readlines()
         for line in lines:
             data = json.loads(line)
-            properties_to_extract = ["id", "title", "authorships",
-                                     "cited_by_count", "concepts", "counts_by_year",
-                                     "language", "type", "publication_date",
-                                     "referenced_works", "related_works", "locations"]
+            properties_to_extract = ["id",
+                                     "title",
+                                     "authorships",
+                                     "cited_by_count",
+                                     "concepts",
+                                     "counts_by_year",
+                                     "language",
+                                     "type",
+                                     "publication_date",
+                                     "referenced_works",
+                                     "related_works",
+                                     "locations",
+                                     "corresponding_author_ids",
+                                     "corresponding_institution_ids",
+                                     ]
             abstract = data.get('abstract_inverted_index')
             data = {key: data[key] for key in properties_to_extract}
             data['visit_count'] = 0
