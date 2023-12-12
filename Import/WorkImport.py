@@ -1,58 +1,41 @@
-import os
-import sys
 import json
-import time
+import os
 import gzip
-from tqdm import tqdm
 from datetime import datetime
-from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Date, Float, Boolean
+from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Date, Float, Boolean, Completion
 from elasticsearch.helpers import parallel_bulk
-import jsonlines
+from elasticsearch import Elasticsearch
+from path import data_path
 
-
-cl = connections.create_connection(hosts=['localhost'])
+connections.create_connection(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
+client = Elasticsearch(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
+INDEX_NAME = 'work'
 
 
 class WorkDocument(Document):
     id = Keyword()
-    title = Text()
+    title = Text(analyzer='ik_max_word', search_analyzer='ik_smart', fields={
+        'suggestion': Completion(analyzer='ik_max_word')
+    })
     authorships = Nested(
         properties={
             "author": Nested(
                 properties={
                     "id": Keyword(),
-                    "display_name": Keyword(),
+                    "display_name": Text(),
                     "orcid": Keyword()
                 }
             ),
-            "author_position": Keyword(),
-            "countries": Keyword()
+            "author_position": Keyword(index=False),
+            "countries": Keyword(index=False)
         }
     )
-    best_oa_location = Nested(
-        properties={
-            "is_oa": Boolean(),
-            "landing_page_url": Keyword(),
-            "pdf_url": Keyword(),
-            "source": Nested(
-                properties={
-                    "id": Keyword(),
-                    "display_name": Keyword(),
-                    "issn_l": Keyword(),
-                    "issn": Keyword(),
-                    "host_organization": Keyword(),
-                    "type": Keyword(),
-                }
-            ),
-            "license": Keyword(),
-            "version": Keyword(),
-        })
     cited_by_count = Integer()
     concepts = Nested(
         properties={
             "id": Keyword(),
-            "wikidata": Keyword(),
-            "display_name": Keyword(),
+            "wikidata": Keyword(index=False),
+            "display_name": Text(),
             "level": Integer(),
             "score": Float()
         }
@@ -64,62 +47,84 @@ class WorkDocument(Document):
             "cited_by_count": Integer(),
         }
     )
-    created_date = Date()
     language = Keyword()
     type = Keyword()
     publication_date = Date()
-    referenced_works = Keyword(multi=True)
-    related_works = Keyword(multi=True)
-    abstract = Text()
+    referenced_works = Keyword(index=False)
+    related_works = Keyword(index=False)
+    abstract = Text(analyzer='ik_max_word', search_analyzer='ik_smart')
+    locations = Nested(
+        properties={
+            "is_oa": Boolean(),
+            "landing_page_url": Keyword(index=False),
+            "pdf_url": Keyword(index=False),
+            "source": Nested(
+                properties={
+                    "id": Keyword(),
+                    "display_name": Text(),
+                    "issn_l": Keyword(index=False),
+                    "issn": Keyword(index=False),
+                    "host_organization": Keyword(index=False),
+                    "type": Keyword(index=False),
+                }
+            ),
+            "license": Keyword(index=False),
+            "version": Keyword(index=False),
+        }
+    )
 
     class Index:
-        name = 'work'
+        name = INDEX_NAME
         settings = {
-            'number_of_shards': 16,
+            'number_of_shards': 20,
             'number_of_replicas': 0,
-            'index.mapping.nested_objects.limit': 500000,
-            'index.refresh_interval': -1,
-            'index.translog.durability': 'async',
-            'index.translog.sync_interval': '120s',
-            'index.translog.flush_threshold_size': '512mb'
+            'index': {
+                'mapping.nested_objects.limit': 100000,
+                'refresh_interval': -1,
+                'translog': {
+                    'durability': 'async',
+                    'sync_interval': '120s',
+                    'flush_threshold_size': '1024mb'
+                }
+            },
         }
 
 
 def generate_actions(file_name):
     with gzip.open(file_name, 'rt', encoding='utf-8') as file:
-        with jsonlines.Reader(file) as lines:
-            for data in lines:
-                # 在这里进行适当的数据处理，构建文档
-                properties_to_extract = ["id", "title", "authorships", "best_oa_location",
-                                         "cited_by_count", "concepts", "counts_by_year",
-                                         "created_date", "language", "type", "publication_date",
-                                         "referenced_works", "related_works"]
-                abstract = data.get('abstract_inverted_index')
-                data = {key: data[key] for key in properties_to_extract}
-                data['abstract'] = None
-                if abstract:
-                    positions = [(word, pos) for word, pos_list in abstract.items() for pos in pos_list]
-                    positions.sort(key=lambda x: x[1])
-                    data['abstract'] = ' '.join([word for word, _ in positions])
-                document = {
-                    '_index': 'work',
-                    '_op_type': 'index',
-                    '_source': data
-                }
-                yield document
+        lines = file.readlines()
+        for line in lines:
+            data = json.loads(line)
+            properties_to_extract = ["id", "title", "authorships",
+                                     "cited_by_count", "concepts", "counts_by_year",
+                                     "language", "type", "publication_date",
+                                     "referenced_works", "related_works", "locations"]
+            abstract = data.get('abstract_inverted_index')
+            data = {key: data[key] for key in properties_to_extract}
+            data['abstract'] = None
+            if abstract:
+                positions = [(word, pos) for word, pos_list in abstract.items() for pos in pos_list]
+                positions.sort(key=lambda x: x[1])
+                data['abstract'] = ' '.join([word for word, _ in positions])
+            document = {
+                '_index': INDEX_NAME,
+                '_op_type': 'index',
+                '_source': data
+            }
+            yield document
 
 
 def run(file_name):
     actions = generate_actions(file_name)
-    for success, info in parallel_bulk(client=cl, actions=actions, queue_size=10, chunk_size=2000):
+    for success, info in parallel_bulk(client=client, actions=actions, thread_count=8, queue_size=20, chunk_size=5000):
         if not success:
             print(f'Failed to index document: {info}')
 
 
-def process_files(folder_path):
-    files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
-    for file in tqdm(files, desc="File status"):
-        run(os.path.join(folder_path, file))
+def process_files(folder):
+    files = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
+    for file in files:
+        run(os.path.join(folder, file))
 
 
 if __name__ == "__main__":
@@ -128,7 +133,7 @@ if __name__ == "__main__":
 
     start_time = datetime.now()
     print("Start insert to ElasticSearch at {}".format(start_time))
-    root_path = '/data/openalex-snapshot/data/works'
+    root_path = data_path + 'works'
     # 获取所有子文件夹
     sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
 
@@ -137,4 +142,4 @@ if __name__ == "__main__":
         process_files(folder_path)
     end_time = datetime.now()
     print("Finished insert to Elasticsearch at{}".format(end_time))
-    print("cost time {}".format(end_time-start_time))
+    print("cost time {}".format(end_time - start_time))

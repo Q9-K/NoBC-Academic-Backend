@@ -1,13 +1,12 @@
 import os
 import json
 import time
-import sys
 import gzip
 from tqdm import tqdm
 from datetime import datetime
-from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Double
+from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Double, Date
 from elasticsearch.helpers import parallel_bulk
-
+from path import data_path
 
 class SourceDocument(Document):
     id = Keyword()
@@ -19,11 +18,11 @@ class SourceDocument(Document):
             "cited_by_count": Integer(),
         }
     )
-    display_name = Text()
-    homepage_url = Text()
-    host_organization = Keyword()
-    host_organization_lineage = Keyword(multi=True)
-    host_organization_name = Text()
+    display_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
+    homepage_url = Keyword(index=False)
+    host_organization = Keyword(index=False)
+    host_organization_lineage = Keyword(index=False)
+    host_organization_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
     summary_stats = Nested(
         properties={
             "2yr_mean_citedness": Double(),
@@ -39,8 +38,8 @@ class SourceDocument(Document):
         }
     )
     type = Keyword()
-    updated_date = Text()
-    works_api_url = Text()
+    updated_date = Date()
+    works_api_url = Keyword(index=False)
     works_count = Integer()
     # 添加字段
     x_concepts = Nested(
@@ -52,6 +51,7 @@ class SourceDocument(Document):
             "score": Double(),
         }
     )
+    img_url = Keyword(index=False)
 
     class Index:
         name = 'source'
@@ -72,7 +72,7 @@ def run(client, file_name):
             properties_to_extract = ["id", "cited_by_count", "counts_by_year", "display_name",
                                      "homepage_url", "host_organization", "host_organization_lineage",
                                      "host_organization_name", "summary_stats", "type", "updated_date",
-                                     "works_api_url", "works_count"]
+                                     "works_api_url", "works_count", "img_url"]
             data = {key: data.get(key) for key in properties_to_extract}
             if data.get('id'):
                 i += 1
@@ -89,7 +89,7 @@ def run(client, file_name):
                         print(response)
                 data_list = []
                 end_time1 = time.time()
-                print("circle {} process time = {}s".format(int(i/5000), end_time1-start_time1))
+                print("circle {} process time = {}s".format(int(i / 5000), end_time1 - start_time1))
         if data_list:
             start_time1 = time.time()
             i += 1
@@ -99,7 +99,9 @@ def run(client, file_name):
             end_time1 = time.time()
             print("circle {} process time = {}s".format(int(i / 5000), end_time1 - start_time1))
         end_time = time.perf_counter()
-        print("finished indexing file {} process time= {} min, end at {}".format(file_name, (end_time-start_time)/60, datetime.now()))
+        print(
+            "finished indexing file {} process time= {} min, end at {}".format(file_name, (end_time - start_time) / 60,
+                                                                               datetime.now()))
 
 
 if __name__ == "__main__":
@@ -111,7 +113,7 @@ if __name__ == "__main__":
     print("Start insert to ElasticSearch at {}".format(datetime.now()))
     # original_stdout = sys.stdout
     # sys.stdout = file
-    root_path = '/data/openalex-snapshot/data/sources'
+    root_path = data_path + 'sources'
     # 获取所有子文件夹
     sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
     for sub_folder in tqdm(sub_folders):

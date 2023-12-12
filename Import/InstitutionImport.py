@@ -1,33 +1,32 @@
 import os
 import json
 import time
-import sys
 import gzip
 from tqdm import tqdm
 from datetime import datetime
 from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Double
 from elasticsearch.helpers import parallel_bulk
-
+from path import data_path
 
 class InstitutionDocument(Document):
     id = Keyword()
     cited_by_count = Integer()
-    display_name = Text()
-    homepage_url = Text()
-    image_url = Text()
-    lineage = Text(multi=True)
+    display_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
+    homepage_url = Keyword(index=False)
+    image_url = Keyword(index=False)
+    lineage = Keyword(index=False)
     ror = Keyword()
     type = Keyword()
-    works_api_url = Text()
-    works_count = Text()
+    works_api_url = Keyword(index=False)
+    works_count = Integer()
     associated_institutions = Nested(
         properties={
             "id": Keyword(),
             "ror": Keyword(),
-            "display_name": Keyword(),
+            "display_name": Text(),
             "country_code": Keyword(),
             "type": Keyword(),
-            "relationship": Text(),
+            "relationship": Keyword(),
         }
     )
     counts_by_year = Nested(
@@ -39,11 +38,11 @@ class InstitutionDocument(Document):
     )
     geo = Nested(
         properties={
-            "city": Text(),
+            "city": Keyword(),
             "geonames_city_id": Keyword(),
-            "region": Text(),
+            "region": Keyword(),
             "country_code": Keyword(),
-            "country": Text(),
+            "country": Keyword(),
             "latitude": Double(),
             "longitude": Double(),
         }
@@ -114,7 +113,7 @@ if __name__ == "__main__":
     print("Start insert to ElasticSearch at {}".format(datetime.now()))
     # original_stdout = sys.stdout
     # sys.stdout = file
-    root_path = '/data/openalex-snapshot/data/institutions'
+    root_path = data_path + 'institutions'
     # 获取所有子文件夹
     sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
     for sub_folder in tqdm(sub_folders):

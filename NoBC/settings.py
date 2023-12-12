@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
 from pathlib import Path
+from elasticsearch_dsl import connections
 
 try:
     from config import *
@@ -93,9 +94,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "NoBC.wsgi.application"
 
-# Database
-# https://docs.djangoproject.com/en/4.1/ref/settings/#databases
-
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.mysql",
@@ -123,17 +121,8 @@ INSTALLED_APPS = [
     'institution',
     'source',
     'concept',
-    # 'django_elasticsearch_dsl',
 ]
 
-ELASTICSEARCH_DSL = {
-    'default': {
-        'hosts': '127.0.0.1:9200',
-        'timeout': 60,
-    }
-}
-ELASTICSEARCH_DSL_SIGNAL_PROCESSOR = 'django_elasticsearch_dsl.signals.RealTimeSignalProcessor'
-ELASTICSEARCH_DSL_PARALLEL = True
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
 
@@ -169,7 +158,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = BUAA_HOST
-EMAIL_PORT = 465
+EMAIL_PORT = 25
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = BUAA_MAIL_USER
 EMAIL_HOST_PASSWORD = BUAA_MAIL_TOKEN
@@ -177,19 +166,23 @@ EMAIL_HOST_PASSWORD = BUAA_MAIL_TOKEN
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379/1",
+        "LOCATION": "redis://{}:6379/0".format(REDIS_HOST),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
     }
 }
 
-CELERY_BROKER_URL = 'pyamqp://rabbit:123456@localhost//'
-CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/1'
-CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
-
-from elasticsearch_dsl import connections
+# CELERY_BROKER_URL = 'pyamqp://rabbit:123456@localhost//'
+# CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/1'
+# CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 connections.configure(
-    default={'host': '123.60.99.8'}
+    default={
+        'host': ELAS_HOST,
+        'http_auth': (ELAS_USER, ELAS_PASSWORD),
+        'scheme': 'http',
+        'verify_certs': False,
+        'timeout': 60,
+    }
 )

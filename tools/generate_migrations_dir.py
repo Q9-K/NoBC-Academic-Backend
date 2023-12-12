@@ -1,8 +1,9 @@
 import os
 
-app_list = ['manager', 'message', 'work', 'author', 'user']
+app_list = ['manager', 'message', 'work', 'author', 'user', 'concept', 'institution', 'source']
 for app in app_list:
-    path = os.path.join(os.getcwd(), app, 'migrations')
+    # 获取当前目录的父目录的父目录
+    path = os.path.join(os.path.abspath(os.path.dirname(os.getcwd())), app, 'migrations')
     # 创建迁移文件夹
     if not os.path.exists(path):
         os.mkdir(path)
