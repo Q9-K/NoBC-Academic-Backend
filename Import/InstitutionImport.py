@@ -61,7 +61,6 @@ class InstitutionDocument(Document):
         }
     )
     chinese_display_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
-    chinese_description = Text()
 
     class Index:
         name = 'institution'
@@ -101,23 +100,14 @@ def run(client, file_name):
             data = {key: origin_data.get(key) for key in properties_to_extract}
             international = origin_data.get('international', {})
             data['chinese_display_name'] = ''
-            data['description'] = ''
-            data['chinese_description'] = ''
             if international:
-                display_name = international.get('display_name')
-                description = international.get('description')
-
+                display_name = international.get('display_name', None)
                 if display_name:
-                    data['chinese_display_name'] = display_name.get('zh-cn', '')
+                    data['chinese_display_name'] = display_name.get('zh-cn', None)
                     if not data['chinese_display_name']:
-                        data['chinese_display_name'] = display_name.get('zh', '')
-                if description:
-                    data['description'] = description.get('en', '')
-                    data['chinese_description'] = description.get('zh-cn', '')
-                    if not data['chinese_description']:
-                        data['chinese_description'] = description.get('zh', '')
-                        if not data['chinese_description']:
-                            data['chinese_description'] = description.get('zh-hans', '')
+                        data['chinese_display_name'] = display_name.get('zh', None)
+                        if not data['chinese_display_name']:
+                            data['chinese_display_name'] = display_name.get('zh_hans', '')
             if data.get('id'):
                 i += 1
                 data_list.append({
