@@ -31,10 +31,27 @@ class SourceDocument(Document):
             "i10_index": Integer(),
         }
     )
+    # 添加字段
+    societies = Nested(
+        properties={
+            "url": Keyword(),
+            "organization": Text(),
+        }
+    )
     type = Keyword()
     updated_date = Text()
     works_api_url = Text()
     works_count = Integer()
+    # 添加字段
+    x_concepts = Nested(
+        properties={
+            "id": Keyword(),
+            "wikidata": Keyword(),
+            "display_name": Text(),
+            "level": Integer(),
+            "score": Double(),
+        }
+    )
 
     class Index:
         name = 'source'

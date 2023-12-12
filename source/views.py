@@ -21,3 +21,39 @@ def common_search(request):
     })
 
 
+def get_sources_by_initial(request):
+    initial = request.GET.get('initial')
+    query_body = {
+        "query": {
+            'prefix': {
+                'display_name': initial,
+            }
+        }
+    }
+    res = elasticsearch_connection.search(index='source', body=query_body)
+    return JsonResponse({
+        'result': res
+    })
+
+
+def get_sources_by_concept(request):
+    concept = request.GET.get('concept')
+    query_body = {
+        "query": {
+            'nested': {
+                'path': 'x_concepts',
+                'query': {
+                    'match': {
+                        'x_concepts.display_name': concept,
+                        'operator': "and",
+                    }
+                }
+            }
+        }
+    }
+    res = elasticsearch_connection.search(index='source', body=query_body)
+    return JsonResponse({
+        'result': res
+    })
+
+
