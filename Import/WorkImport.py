@@ -22,7 +22,10 @@ class WorkDocument(Document):
             "author": Nested(
                 properties={
                     "id": Keyword(),
-                    "display_name": Text(),
+                    "display_name": Text(
+                        fields={
+                            'keyword': Keyword()
+                        }),
                     "orcid": Keyword()
                 }
             ),
@@ -31,7 +34,10 @@ class WorkDocument(Document):
             "institutions": Nested(
                 properties={
                     "country_code": Keyword(),
-                    "display_name": Text(),
+                    "display_name": Text(
+                        fields={
+                            'keyword': Keyword()
+                        }),
                     "id": Keyword(),
                     "lineage": Text(),
                     "ror": Text(),
@@ -47,7 +53,11 @@ class WorkDocument(Document):
         properties={
             "id": Keyword(),
             "wikidata": Keyword(index=False),
-            "display_name": Text(),
+            "display_name": Text(
+                fields={
+                    'keyword': Keyword()
+                }
+            ),
             "level": Integer(),
             "score": Float()
         }
@@ -73,7 +83,11 @@ class WorkDocument(Document):
             "source": Nested(
                 properties={
                     "id": Keyword(),
-                    "display_name": Text(),
+                    "display_name": Text(
+                        fields={
+                            'keyword': Keyword()
+                        }
+                    ),
                     "issn_l": Keyword(index=False),
                     "issn": Keyword(index=False),
                     "host_organization": Keyword(index=False),
@@ -160,7 +174,7 @@ if __name__ == "__main__":
     print("Start insert to ElasticSearch at {}".format(start_time))
     root_path = data_path + 'works'
     # 获取所有子文件夹
-    sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))][0:2]
+    sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
 
     for sub_folder in sub_folders:
         folder_path = os.path.join(root_path, sub_folder)
