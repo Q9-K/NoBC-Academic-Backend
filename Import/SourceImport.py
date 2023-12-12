@@ -6,7 +6,12 @@ from tqdm import tqdm
 from datetime import datetime
 from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Double, Date
 from elasticsearch.helpers import parallel_bulk
+from elasticsearch import Elasticsearch
 from path import data_path
+
+connections.create_connection(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
+client = Elasticsearch(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
+INDEX_NAME = 'source'
 
 class SourceDocument(Document):
     id = Keyword()
@@ -30,10 +35,27 @@ class SourceDocument(Document):
             "i10_index": Integer(),
         }
     )
+    # 添加字段
+    societies = Nested(
+        properties={
+            "url": Keyword(),
+            "organization": Text(),
+        }
+    )
     type = Keyword()
     updated_date = Date()
     works_api_url = Keyword(index=False)
     works_count = Integer()
+    # 添加字段
+    x_concepts = Nested(
+        properties={
+            "id": Keyword(),
+            "wikidata": Keyword(),
+            "display_name": Text(),
+            "level": Integer(),
+            "score": Double(),
+        }
+    )
     img_url = Keyword(index=False)
 
     class Index:
@@ -54,8 +76,8 @@ def run(client, file_name):
             data = json.loads(line)
             properties_to_extract = ["id", "cited_by_count", "counts_by_year", "display_name",
                                      "homepage_url", "host_organization", "host_organization_lineage",
-                                     "host_organization_name", "summary_stats", "type", "updated_date",
-                                     "works_api_url", "works_count", "img_url"]
+                                     "host_organization_name", "summary_stats", "type", "societies",
+                                     "updated_date", "works_api_url", "works_count", "x_concepts", "img_url"]
             data = {key: data.get(key) for key in properties_to_extract}
             if data.get('id'):
                 i += 1
@@ -88,7 +110,6 @@ def run(client, file_name):
 
 
 if __name__ == "__main__":
-    cl = connections.create_connection(hosts=['localhost'])
     SourceDocument.init()
     # print('日志路径', os.path.join(os.path.dirname(os.path.abspath(__file__)), "SourceImport.log"))
 
@@ -104,6 +125,6 @@ if __name__ == "__main__":
         files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
         for zip_file in files:
             file_name = os.path.join(folder_path, zip_file)
-            run(cl, file_name)
+            run(client, file_name)
     # sys.stdout = original_stdout
     print("Finished insert to Elasticsearch at{}".format(datetime.now()))

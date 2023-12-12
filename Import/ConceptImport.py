@@ -9,8 +9,8 @@ from elasticsearch.helpers import parallel_bulk
 from elasticsearch import Elasticsearch
 from path import data_path
 
-connections.create_connection(hosts=['localhost'], timeout=60)
-client = Elasticsearch(hosts=['localhost'], timeout=60)
+connections.create_connection(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
+client = Elasticsearch(hosts=['localhost'], timeout=60,http_auth=('elastic', 'buaaNOBC2121'))
 
 
 class ConceptDocument(Document):
@@ -95,14 +95,14 @@ def run(file_name):
                 description = international.get('description')
 
                 if display_name:
-                    data['chinese_display_name'] = display_name.get('zh-cn', '')
+                    data['chinese_display_name'] = display_name.get('zh-cn')
                     if not data['chinese_display_name']:
                         data['chinese_display_name'] = display_name.get('zh', '')
                 if description:
                     data['description'] = description.get('en', '')
-                    data['chinese_description'] = description.get('zh-cn', '')
+                    data['chinese_description'] = description.get('zh-cn')
                     if not data['chinese_description']:
-                        data['chinese_description'] = description.get('zh', '')
+                        data['chinese_description'] = description.get('zh')
                         if not data['chinese_description']:
                             data['chinese_description'] = description.get('zh-hans', '')
 
