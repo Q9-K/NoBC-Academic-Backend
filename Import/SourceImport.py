@@ -76,8 +76,8 @@ def run(client, file_name):
             data = json.loads(line)
             properties_to_extract = ["id", "cited_by_count", "counts_by_year", "display_name",
                                      "homepage_url", "host_organization", "host_organization_lineage",
-                                     "host_organization_name", "summary_stats", "type", "updated_date",
-                                     "works_api_url", "works_count", "img_url"]
+                                     "host_organization_name", "summary_stats", "type", "societies",
+                                     "updated_date", "works_api_url", "works_count", "x_concepts", "img_url"]
             data = {key: data.get(key) for key in properties_to_extract}
             if data.get('id'):
                 i += 1
