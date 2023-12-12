@@ -110,7 +110,6 @@ def run(client, file_name):
 
 
 if __name__ == "__main__":
-    cl = connections.create_connection(hosts=['localhost'])
     SourceDocument.init()
     # print('日志路径', os.path.join(os.path.dirname(os.path.abspath(__file__)), "SourceImport.log"))
 
@@ -126,6 +125,6 @@ if __name__ == "__main__":
         files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
         for zip_file in files:
             file_name = os.path.join(folder_path, zip_file)
-            run(cl, file_name)
+            run(client, file_name)
     # sys.stdout = original_stdout
     print("Finished insert to Elasticsearch at{}".format(datetime.now()))
