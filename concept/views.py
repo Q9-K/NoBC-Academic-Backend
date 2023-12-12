@@ -7,16 +7,15 @@ from elasticsearch import Elasticsearch
 from elasticsearch_dsl import Search
 from elasticsearch_dsl.connections import connections
 from NoBC.status_code import *
+from utils.view_decorator import allowed_methods
 
 # Create your views here.
 
 client = connections.get_connection()
 
-
+@allowed_methods(['GET'])
 def get_level_0(request):
-    if request.method != 'GET':
-        return JsonResponse({'code': METHOD_ERROR, 'msg': '请求方法错误'})
-
+    language = request.GET.get('language', 0)
     # 创建搜索对象
     try:
         s = Search(using=client, index="concept")
@@ -24,12 +23,19 @@ def get_level_0(request):
         return JsonResponse({'code': 10005, 'msg': '创建搜索对象失败'})
     # 添加过滤条件
     s = s.filter("term", level=0)
-
+    if(language):
+        s = s.source(['id', 'chinese_display_name'])
+    else:
+        s = s.source(['id', 'display_name'])
     # 执行搜索
     response = s.execute()
 
-    # 获取搜索结果
-    results = response.hits.hits
+    response = response.to_dict()['hits']['hits']
+
+    results=[]
+    for hit in response:
+        source_data = hit['_source']
+        results.append(source_data)
 
     # 返回搜索结果
     return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
@@ -134,13 +140,4 @@ def search_concept_by_keyword(request):
     return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
 
 
-@shared_task
-def process_remaining_results(all_results, username):
-    # 对所有结果进行排序
-    sorted_results = sorted(all_results, key=lambda x: x['summary_stats']['h_index'], reverse=True)
 
-    # 将排序后的结果按页存储在缓存中
-    for i in range(20, len(sorted_results), 20):  # 从第二页开始
-        page_number = i // 20 + 2
-        cache_key = f'{username}_sorted_results_page_{page_number}'
-        cache.set(cache_key, sorted_results[i:i + 20])
