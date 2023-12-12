@@ -6,7 +6,12 @@ from tqdm import tqdm
 from datetime import datetime
 from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Double, Date
 from elasticsearch.helpers import parallel_bulk
+from elasticsearch import Elasticsearch
 from path import data_path
+
+connections.create_connection(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
+client = Elasticsearch(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
+INDEX_NAME = 'source'
 
 class SourceDocument(Document):
     id = Keyword()
