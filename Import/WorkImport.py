@@ -2,10 +2,12 @@ import json
 import os
 import gzip
 from datetime import datetime
-from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Date, Float, Boolean, Completion, Object
+from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Date, Float, Boolean, Completion, \
+    Object
 from elasticsearch.helpers import parallel_bulk
 from elasticsearch import Elasticsearch
 from path import data_path
+from collections import deque
 
 connections.create_connection(hosts=['localhost'], timeout=120, http_auth=('elastic', 'buaaNOBC2121'))
 client = Elasticsearch(hosts=['localhost'], timeout=120, http_auth=('elastic', 'buaaNOBC2121'))
@@ -147,7 +149,6 @@ def generate_actions(file_name):
                 data['abstract'] = ' '.join([word for word, _ in positions])
             document = {
                 '_index': INDEX_NAME,
-                '_op_type': 'index',
                 '_source': data
             }
             yield document
@@ -155,11 +156,10 @@ def generate_actions(file_name):
 
 def run(file_name):
     actions = generate_actions(file_name)
-    for success, info in parallel_bulk(client=client, actions=actions,
-                                       thread_count=8, queue_size=100,
-                                       chunk_size=1000, request_timeout=120):
-        if not success:
-            print(f'Failed to index document: {info}')
+    deque(parallel_bulk(client=client, actions=actions,
+                        thread_count=8, queue_size=50,
+                        chunk_size=1000, request_timeout=120
+                        ), maxlen=0)
 
 
 def process_files(folder):
