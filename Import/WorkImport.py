@@ -27,7 +27,17 @@ class WorkDocument(Document):
                 }
             ),
             "author_position": Keyword(index=False),
-            "countries": Keyword(index=False)
+            "countries": Keyword(index=False),
+            "institutions": Nested(
+                properties={
+                    "country_code": Keyword(),
+                    "display_name": Text(),
+                    "id": Keyword(),
+                    "lineage": Text(),
+                    "ror": Text(),
+                    "type": Keyword(),
+                }
+            )
         }
     )
     cited_by_count = Integer()
@@ -72,6 +82,7 @@ class WorkDocument(Document):
             "version": Keyword(index=False),
         }
     )
+    visit_count = Integer()
 
     class Index:
         name = INDEX_NAME
@@ -101,6 +112,7 @@ def generate_actions(file_name):
                                      "referenced_works", "related_works", "locations"]
             abstract = data.get('abstract_inverted_index')
             data = {key: data[key] for key in properties_to_extract}
+            data['visit_count'] = 0
             data['abstract'] = None
             if abstract:
                 positions = [(word, pos) for word, pos_list in abstract.items() for pos in pos_list]
@@ -116,7 +128,7 @@ def generate_actions(file_name):
 
 def run(file_name):
     actions = generate_actions(file_name)
-    for success, info in parallel_bulk(client=client, actions=actions, thread_count=8, queue_size=20, chunk_size=5000):
+    for success, info in parallel_bulk(client=client, actions=actions, thread_count=8, queue_size=15, chunk_size=5000):
         if not success:
             print(f'Failed to index document: {info}')
 
@@ -135,7 +147,7 @@ if __name__ == "__main__":
     print("Start insert to ElasticSearch at {}".format(start_time))
     root_path = data_path + 'works'
     # 获取所有子文件夹
-    sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
+    sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))][0:2]
 
     for sub_folder in sub_folders:
         folder_path = os.path.join(root_path, sub_folder)
