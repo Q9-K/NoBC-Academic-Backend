@@ -18,6 +18,13 @@ class User(models.Model):
     # 是否成功注册
     is_active = models.BooleanField(default=False)
 
+    def activate(self):
+        """
+        激活用户
+        """
+        self.is_active = True
+        self.save()
+
 
 class History(models.Model):
     user = models.ForeignKey(to='user.User', on_delete=models.CASCADE)
