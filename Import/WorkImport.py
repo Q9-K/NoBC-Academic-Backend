@@ -121,8 +121,8 @@ class WorkDocument(Document):
 
 def generate_actions(file_name):
     with gzip.open(file_name, 'rt', encoding='utf-8') as file:
-        lines = file.readlines()
-        for line in lines:
+        # lines = file.readlines()
+        for line in file:
             data = json.loads(line)
             properties_to_extract = ["id",
                                      "title",
@@ -157,8 +157,8 @@ def generate_actions(file_name):
 def run(file_name):
     actions = generate_actions(file_name)
     deque(parallel_bulk(client=client, actions=actions,
-                        thread_count=8, queue_size=50,
-                        chunk_size=1000, request_timeout=120
+                        thread_count=8, queue_size=15,
+                        chunk_size=5000, request_timeout=120
                         ), maxlen=0)
 
 
