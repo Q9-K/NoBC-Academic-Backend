@@ -157,8 +157,8 @@ def generate_actions(file_name):
 def run(file_name):
     actions = generate_actions(file_name)
     deque(parallel_bulk(client=client, actions=actions,
-                        thread_count=8, queue_size=8,
-                        chunk_size=10000, request_timeout=120
+                        thread_count=8, queue_size=50,
+                        chunk_size=1000, request_timeout=120
                         ), maxlen=0)
 
 
