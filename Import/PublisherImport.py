@@ -88,7 +88,7 @@ def run(client, file_name):
 
 
 if __name__ == "__main__":
-    cl = connections.create_connection(hosts=['localhost'])
+    cl = connections.create_connection(hosts=['localhost'], http_auth=('elastic', 'buaaNOBC2121'))
     PublisherDocument.init()
     # print('日志路径', os.path.join(os.path.dirname(os.path.abspath(__file__)), "PublisherImport.log"))
     #
