@@ -105,14 +105,14 @@ class WorkDocument(Document):
     class Index:
         name = INDEX_NAME
         settings = {
-            'number_of_shards': 20,
+            'number_of_shards': 30,
             'number_of_replicas': 0,
             'index': {
                 'mapping.nested_objects.limit': 100000,
                 'refresh_interval': -1,
                 'translog': {
                     'durability': 'async',
-                    'sync_interval': '120s',
+                    'sync_interval': '60s',
                     'flush_threshold_size': '1024mb'
                 }
             },
@@ -121,8 +121,8 @@ class WorkDocument(Document):
 
 def generate_actions(file_name):
     with gzip.open(file_name, 'rt', encoding='utf-8') as file:
-        # lines = file.readlines()
-        for line in file:
+        lines = file.readlines()
+        for line in lines:
             data = json.loads(line)
             properties_to_extract = ["id",
                                      "title",
