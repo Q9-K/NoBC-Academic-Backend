@@ -24,7 +24,7 @@ def send_email(email) -> int:
     # 生成随机六位数验证码
     code = random.randint(100000, 999999)
     send_mail(
-        "Subject",
+        "NoBC注册",
         f"欢迎注册NoBC平台,这是你的验证码:{code}",
         BUAA_MAIL_USER,
         [email],
