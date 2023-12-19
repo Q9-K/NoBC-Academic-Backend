@@ -9,10 +9,10 @@ class User(models.Model):
     name = models.CharField(max_length=20)
     password = models.CharField(max_length=100)
     email = models.EmailField(default='暂无', primary_key=True)
-    histories = models.ManyToManyField(to='work.Work', through='History', related_name='user_history')
-    favorites = models.ManyToManyField(to='work.Work', related_name='user_favorite')
+    histories = models.ManyToManyField(to='work.Work', through='History', related_name='history_user')
+    favorites = models.ManyToManyField(to='work.Work', related_name='favorite_user')
     scholar_identity = models.ForeignKey(to='author.Author', on_delete=models.CASCADE, null=True)
-    concept_focus = models.ManyToManyField(to='concept.Concept', related_name='user')
+    concept_focus = models.ManyToManyField(to='concept.Concept', related_name='focus_user')
     salt = models.CharField(max_length=4, default='')
     follows = models.ManyToManyField(to='author.Author', related_name='fans')
     # 是否成功注册
@@ -24,6 +24,12 @@ class User(models.Model):
         """
         self.is_active = True
         self.save()
+
+    def to_string(self):
+        return {
+            'name': self.name,
+            'email': self.email
+        }
 
 
 class History(models.Model):

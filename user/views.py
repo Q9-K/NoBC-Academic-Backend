@@ -1,13 +1,16 @@
 import random
+from datetime import datetime
 
 from django.core.mail import send_mail
 from NoBC.status_code import *
 from author.models import Author
+from concept.models import Concept
 from config import BUAA_MAIL_USER
 from utils.Md5 import create_md5, create_salt
 from utils.Response import response
 from utils.Token import generate_token
 from utils.Token import get_value
+from work.models import Work
 from .models import User
 
 
@@ -21,7 +24,7 @@ def send_email(email) -> int:
     code = random.randint(100000, 999999)
     send_mail(
         "Subject",
-        "欢迎注册NoBC平台,这是你的验证码:",
+        f"欢迎注册NoBC平台,这是你的验证码:{code}",
         BUAA_MAIL_USER,
         [email],
     )
@@ -51,7 +54,8 @@ def register_view(request):
             salt = create_salt()
             password_encode = create_md5(password, salt)
             # 创建用户, is_active=False, 未激活, 激活后才能登录,update_or_create,如果存在则更新,不存在则创建
-            User.objects.update_or_create(name=name, password=password_encode, salt=salt, email=email)
+            if not User.objects.filter(email=email):
+                User.objects.update_or_create(name=name, password=password_encode, salt=salt, email=email)
             return response(SUCCESS, '请注意查收邮件！', data=code)
         else:
             return response(PARAMS_ERROR, '提交字段名不可为空！', error=True)
@@ -74,7 +78,10 @@ def active_user(request):
                 user = User.objects.get(email=email, is_active=False)
                 if get_code == correct_code:
                     user.activate()
-                    return response(SUCCESS, '注册成功')
+                    # 注册成功后直接登录,返回token
+                    dic = {'email': email, 'name': user.name}
+                    token = generate_token(dic, 60 * 60 * 24)
+                    return response(SUCCESS, '注册成功', data=token)
                 else:
                     return response(PARAMS_ERROR, '验证码错误', error=True)
             except Exception:
@@ -105,7 +112,8 @@ def login_view(request):
                     dic = {'email': email, 'name': user.name}
                     token = generate_token(dic, 60 * 60 * 24)
                     return response(SUCCESS, '登录成功！', data=token)
-            except Exception:
+            except Exception as e:
+                print(e)
                 return response(MYSQL_ERROR, '用户不存在！', error=True)
         else:
             return response(PARAMS_ERROR, '用户名或密码错误！', error=True)
@@ -159,7 +167,7 @@ def get_favorites(request):
             return response(PARAMS_ERROR, 'token错误！', error=True)
 
 
-def get_concept_focus(request):
+def get_focus_concepts(request):
     """
     获取用户关注的领域
     :param request: token
@@ -207,7 +215,7 @@ def get_messages(request):
             return response(PARAMS_ERROR, 'token错误！', error=True)
 
 
-def get_scholar_focus(request):
+def get_follows(request):
     """
     获取关注的学者
     :param request: token
@@ -255,6 +263,232 @@ def follow_scholar(request):
                     return response(SUCCESS, '关注学者成功！')
                 except Exception:
                     return response(MYSQL_ERROR, '学者不存在！', error=True)
+            except Exception:
+                return response(MYSQL_ERROR, '用户不存在！', error=True)
+        else:
+            return response(PARAMS_ERROR, 'token错误！', error=True)
+
+
+def unfollow_scholar(request):
+    """
+    取消关注学者
+    :param request: scholar_id, token
+    :return: [code, msg, data, error]
+    """
+    if request.method != 'POST':
+        return response(METHOD_ERROR, '请求方法错误', error=True)
+    else:
+        token = request.GET.get('token')
+        value = get_value(token)
+        if value:
+            email = value['email']
+            try:
+                user = User.objects.get(email=email, is_active=True)
+                scholar_id = request.POST.get('scholar_id', None)
+                if not scholar_id:
+                    return response(PARAMS_ERROR, '缺少学者id！', error=True)
+                try:
+                    scholar = Author.objects.get(id=scholar_id)
+                    user.follows.remove(scholar)
+                    return response(SUCCESS, '取消关注学者成功！')
+                except Exception:
+                    return response(MYSQL_ERROR, '学者不存在！', error=True)
+            except Exception:
+                return response(MYSQL_ERROR, '用户不存在！', error=True)
+        else:
+            return response(PARAMS_ERROR, 'token错误！', error=True)
+
+
+def add_focus_concept(request):
+    """
+    关注领域
+    :param request: concept_id, token
+    :return: [code, msg, data, error]
+    """
+    if request.method != 'POST':
+        return response(METHOD_ERROR, '请求方法错误', error=True)
+    else:
+        token = request.GET.get('token')
+        value = get_value(token)
+        if value:
+            email = value['email']
+            try:
+                user = User.objects.get(email=email, is_active=True)
+                concept_id = request.POST.get('concept_id', None)
+                if not concept_id:
+                    return response(PARAMS_ERROR, '缺少领域id！', error=True)
+                try:
+                    concept = Concept.objects.get(id=concept_id)
+                    user.concept_focus.add(concept)
+                except Exception:
+                    # 领域不存在,创建领域
+                    concept = Concept.objects.create(id=concept_id)
+                    user.concept_focus.add(concept)
+                return response(SUCCESS, '关注领域成功！')
+            except Exception:
+                return response(MYSQL_ERROR, '用户不存在！', error=True)
+        else:
+            return response(PARAMS_ERROR, 'token错误！', error=True)
+
+
+def remove_focus_concept(request):
+    """
+    取消关注领域
+    :param request: concept_id, token
+    :return: [code, msg, data, error]
+    """
+    if request.method != 'POST':
+        return response(METHOD_ERROR, '请求方法错误', error=True)
+    else:
+        token = request.GET.get('token')
+        value = get_value(token)
+        if value:
+            email = value['email']
+            try:
+                user = User.objects.get(email=email, is_active=True)
+                concept_id = request.POST.get('concept_id', None)
+                if not concept_id:
+                    return response(PARAMS_ERROR, '缺少领域id！', error=True)
+                try:
+                    concept = Concept.objects.get(id=concept_id)
+                    user.concept_focus.remove(concept)
+                    return response(SUCCESS, '取消关注领域成功！')
+                except Exception:
+                    return response(MYSQL_ERROR, '领域不存在！', error=True)
+            except Exception:
+                return response(MYSQL_ERROR, '用户不存在！', error=True)
+        else:
+            return response(PARAMS_ERROR, 'token错误！', error=True)
+
+
+def get_user_info(request):
+    """
+    获取用户信息
+    :param request: token
+    :return: [code, msg, data, error], 其中data为用户信息
+    """
+    if request.method != 'GET':
+        return response(METHOD_ERROR, '请求方法错误', error=True)
+    else:
+        token = request.GET.get('token')
+        value = get_value(token)
+        if value:
+            email = value['email']
+            try:
+                user = User.objects.get(email=email, is_active=True)
+                data = user.to_string()
+                return response(SUCCESS, '获取用户信息成功！', data=data)
+            except Exception:
+                return response(MYSQL_ERROR, '用户不存在！', error=True)
+        else:
+            return response(PARAMS_ERROR, 'token错误！', error=True)
+
+
+def record_history(request):
+    """
+    记录浏览记录
+    :param request: token, paper_id
+    :return: [code, msg, data, error]
+    """
+    if request.method != 'POST':
+        return response(METHOD_ERROR, '请求方法错误', error=True)
+    else:
+        token = request.POST.get('token')
+        value = get_value(token)
+        if value:
+            email = value['email']
+            try:
+                user = User.objects.get(email=email, is_active=True)
+                work_id = request.POST.get('work_id', None)
+                if not work_id:
+                    return response(PARAMS_ERROR, '缺少论文id！', error=True)
+                # 论文不存在,创建论文
+                if not Work.objects.filter(id=work_id):
+                    Work.objects.create(id=work_id)
+                # 通过中间表记录浏览记录
+                user.histories.add(work_id, through_defaults={'date_time': datetime.now()})
+                return response(SUCCESS, '记录浏览记录成功！')
+            except Exception:
+                return response(MYSQL_ERROR, '用户不存在！', error=True)
+        else:
+            return response(PARAMS_ERROR, 'token错误！', error=True)
+
+
+def add_favorite(request):
+    """
+    添加收藏
+    :param request: token, paper_id
+    :return: [code, msg, data, error]
+    """
+    if request.method != 'POST':
+        return response(METHOD_ERROR, '请求方法错误', error=True)
+    else:
+        token = request.POST.get('token')
+        value = get_value(token)
+        if value:
+            email = value['email']
+            try:
+                user = User.objects.get(email=email, is_active=True)
+                work_id = request.POST.get('work_id', None)
+                if not work_id:
+                    return response(PARAMS_ERROR, '缺少论文id！', error=True)
+                # 论文不存在,创建论文
+                if not Work.objects.filter(id=work_id):
+                    Work.objects.create(id=work_id)
+                user.favorites.add(work_id)
+                return response(SUCCESS, '添加收藏成功！')
+            except Exception:
+                return response(MYSQL_ERROR, '用户不存在！', error=True)
+        else:
+            return response(PARAMS_ERROR, 'token错误！', error=True)
+
+
+def remove_favorite(request):
+    """
+    取消收藏
+    :param request: token, paper_id
+    :return: [code, msg, data, error]
+    """
+    if request.method != 'POST':
+        return response(METHOD_ERROR, '请求方法错误', error=True)
+    else:
+        token = request.POST.get('token')
+        value = get_value(token)
+        if value:
+            email = value['email']
+            try:
+                user = User.objects.get(email=email, is_active=True)
+                work_id = request.POST.get('work_id', None)
+                if not work_id:
+                    return response(PARAMS_ERROR, '缺少论文id！', error=True)
+                # 论文不存在,创建论文
+                if not Work.objects.filter(id=work_id):
+                    Work.objects.create(id=work_id)
+                user.favorites.remove(work_id)
+                return response(SUCCESS, '取消收藏成功！')
+            except Exception:
+                return response(MYSQL_ERROR, '用户不存在！', error=True)
+        else:
+            return response(PARAMS_ERROR, 'token错误！', error=True)
+
+
+def clear_histories(request):
+    """
+    清空浏览记录
+    :param request: token
+    :return: [code, msg, data, error]
+    """
+    if request.method != 'POST':
+        return response(METHOD_ERROR, '请求方法错误', error=True)
+    else:
+        token = request.POST.get('token')
+        value = get_value(token)
+        if value:
+            email = value['email']
+            try:
+                user = User.objects.get(email=email, is_active=True)
+                user.histories.clear()
+                return response(SUCCESS, '清空浏览记录成功！')
             except Exception:
                 return response(MYSQL_ERROR, '用户不存在！', error=True)
         else:
