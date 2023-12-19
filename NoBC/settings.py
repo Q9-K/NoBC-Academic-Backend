@@ -94,16 +94,16 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "NoBC.wsgi.application"
 
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.mysql",
-#         "NAME": "NoBC",
-#         "USER": MYSQL_USER,
-#         "PASSWORD": MYSQL_PASSWORD,
-#         "HOST": MYSQL_HOST,
-#         "PORT": '3306',
-#     }
-# }
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": "NoBC",
+        "USER": MYSQL_USER,
+        "PASSWORD": MYSQL_PASSWORD,
+        "HOST": MYSQL_HOST,
+        "PORT": '3306',
+    }
+}
 INSTALLED_APPS = [
     "corsheaders",
     "django.contrib.admin",

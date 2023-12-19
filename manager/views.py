@@ -7,8 +7,12 @@ from message.models import Certification, Complaint
 
 # Create your views here.
 
-# 管理员登录
 def login_view(request):
+    """
+    管理员登录
+    :param request: name password
+    :return: token
+    """
     if request.method != 'POST':
         return response(METHOD_ERROR, '请求方法错误', error=True)
     else:
@@ -22,12 +26,16 @@ def login_view(request):
                 dic = {'name': name}
                 token = generate_token(dic, 60 * 60 * 24)
                 return response(SUCCESS, '登录成功！', data=token)
-        except Exception as e:
+        except Exception:
             return response(PARAMS_ERROR, '用户名或密码错误！', error=True)
 
 
-# 获取需要审核的认证
 def get_certifications(request):
+    """
+    获取需要审核的认证
+    :param request: token
+    :return: [code, msg, data, error] data为需要审核的认证列表
+    """
     if request.method != 'GET':
         return response(METHOD_ERROR, '请求方法错误', error=True)
     else:
@@ -36,20 +44,22 @@ def get_certifications(request):
         if value:
             name = value['name']
             try:
-                manager = Manager.objects.get(name=name)
+                Manager.objects.get(name=name)
                 certifications = Certification.objects.all()
-                data = []
-                for certification in certifications:
-                    data.append(certification.to_string())
+                data = [certification.to_string() for certification in certifications]
                 return response(SUCCESS, '获取需要审核的认证记录成功！', data=data)
-            except Exception as e:
+            except Exception:
                 return response(MYSQL_ERROR, '不存在此管理员！', error=True)
         else:
             return response(PARAMS_ERROR, 'token错误！', error=True)
 
 
-# 获取需要审核的投诉
 def get_complaints(request):
+    """
+    获取需要审核的投诉
+    :param request: token
+    :return: [code, msg, data, error] data为需要审核的投诉列表
+    """
     if request.method != 'GET':
         return response(METHOD_ERROR, '请求方法错误', error=True)
     else:
@@ -58,20 +68,22 @@ def get_complaints(request):
         if value:
             name = value['name']
             try:
-                manager = Manager.objects.get(name=name)
+                Manager.objects.get(name=name)
                 complaints = Complaint.objects.all()
-                data = []
-                for complaint in complaints:
-                    data.append(complaint.to_string())
+                data = [complaint.to_string() for complaint in complaints]
                 return response(SUCCESS, '获取需要审核的投诉记录成功！', data=data)
-            except Exception as e:
+            except Exception:
                 return response(MYSQL_ERROR, '不存在此管理员！', error=True)
         else:
             return response(PARAMS_ERROR, 'token错误！', error=True)
 
 
-# 审核认证
 def check_certification(request):
+    """
+    审核认证
+    :param request: token certification_id status opinion, status: 1 pass 2 reject
+    :return: [code, msg, data, error]
+    """
     if request.method != 'POST':
         return response(METHOD_ERROR, '请求方法错误', error=True)
     else:
@@ -96,9 +108,9 @@ def check_certification(request):
                         else:
                             return response(PARAMS_ERROR, 'status错误！')
                         certification.result_msg = opinion
-                    except Exception as e:
+                    except Exception:
                         return response(PARAMS_ERROR, '不存在此认证记录！')
-                except Exception as e:
+                except Exception:
                     return response(PARAMS_ERROR, '不存在此管理员！')
             else:
                 return response(PARAMS_ERROR, 'token错误！')
@@ -108,6 +120,11 @@ def check_certification(request):
 
 # 审核投诉
 def check_complaint(request):
+    """
+    审核投诉
+    :param request: token complaint_id status opinion, status: 1 pass 2 reject
+    :return: [code, msg, data, error]
+    """
     if request.method != 'POST':
         return response(METHOD_ERROR, '请求方法错误', error=True)
     else:
@@ -122,7 +139,7 @@ def check_complaint(request):
             if value:
                 name = value['name']
                 try:
-                    manager = Manager.objects.get(name=name)
+                    Manager.objects.get(name=name)
                     try:
                         complaint = Complaint.objects.get(id=complaint_id)
                         if status_code == '1':
@@ -132,9 +149,9 @@ def check_complaint(request):
                         else:
                             return response(PARAMS_ERROR, 'status错误！', error=True)
                         complaint.result_msg = opinion
-                    except Exception as e:
+                    except Exception:
                         return response(MYSQL_ERROR, '不存在此投诉记录！', error=True)
-                except Exception as e:
+                except Exception:
                     return response(MYSQL_ERROR, '不存在此管理员！', error=True)
             else:
                 return response(PARAMS_ERROR, 'token错误！', error=True)

@@ -22,8 +22,8 @@ class Message(models.Model):
 
 class Certification(models.Model):
     user = models.ForeignKey(to='user.User', related_name='certification', on_delete=models.CASCADE)
-    # 只记录需要认证的学者信息
-    scholar = models.TextField(default='')
+    # 学者外键
+    scholar = models.ForeignKey(to='author.Author', related_name='certification', on_delete=models.CASCADE)
     # 状态可选项
     PENDING = 'PD'
     PASSED = 'PS'
@@ -52,7 +52,7 @@ class Certification(models.Model):
 
 class Complaint(models.Model):
     user = models.ForeignKey(to='user.User', related_name='complaint', on_delete=models.CASCADE)
-    to_scholar = models.TextField(default='')
+    to_scholar = models.ForeignKey(to='author.Author', related_name='complaint', on_delete=models.CASCADE)
     # 状态可选项
     PENDING = 'PD'
     PASSED = 'PS'
