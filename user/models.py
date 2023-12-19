@@ -18,6 +18,13 @@ class User(models.Model):
     # 是否成功注册
     is_active = models.BooleanField(default=False)
 
+    # 个人信息
+    real_name = models.CharField(max_length=20, default='暂无')
+    gender = models.CharField(max_length=4, default='暂无')
+    position = models.CharField(max_length=20, default='暂无')
+    organization = models.CharField(max_length=20, default='暂无')
+    subject = models.CharField(max_length=20, default='暂无')
+
     def activate(self):
         """
         激活用户
@@ -28,7 +35,11 @@ class User(models.Model):
     def to_string(self):
         return {
             'name': self.name,
-            'email': self.email
+            'real_name': self.real_name,
+            'gender': self.gender,
+            'position': self.position,
+            'organization': self.organization,
+            'subject': self.subject
         }
 
 

@@ -1,4 +1,5 @@
 import random
+import re
 from datetime import datetime
 
 from django.core.mail import send_mail
@@ -46,17 +47,23 @@ def register_view(request):
         password = request.POST.get('password', None)
         password_repeat = request.POST.get('password_repeat', None)
         if name and password and password_repeat and email:
+            re_str = r'^[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+){0,4}@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+){0,4}$'
+            if not re.match(re_str, email):
+                return response(PARAMS_ERROR, '邮箱格式错误！', error=True)
             if User.objects.filter(email=email, is_active=True):
                 return response(PARAMS_ERROR, '邮箱已注册过！', error=True)
             if password != password_repeat:
                 return response(PARAMS_ERROR, '两次密码不一致！', error=True)
             # 发送邮件
-            code = send_email(email)
+            try:
+                code = send_email(email)
+            except Exception:
+                return response(PARAMS_ERROR, '发送邮件失败！', error=True)
             salt = create_salt()
             password_encode = create_md5(password, salt)
             # 创建用户, is_active=False, 未激活, 激活后才能登录,update_or_create,如果存在则更新,不存在则创建
-            if not User.objects.filter(email=email):
-                User.objects.update_or_create(name=name, password=password_encode, salt=salt, email=email)
+            default_fields = {'name': name, 'password': password_encode, 'salt': salt}
+            User.objects.update_or_create(defaults=default_fields, email=email)
             return response(SUCCESS, '请注意查收邮件！', data=code)
         else:
             return response(PARAMS_ERROR, '提交字段名不可为空！', error=True)
@@ -80,7 +87,7 @@ def active_user(request):
                 if get_code == correct_code:
                     user.activate()
                     # 注册成功后直接登录,返回token
-                    dic = {'email': email, 'name': user.name}
+                    dic = {'email': user.email, 'name': user.name}
                     token = generate_token(dic, 60 * 60 * 24)
                     return response(SUCCESS, '注册成功', data=token)
                 else:
@@ -108,16 +115,16 @@ def login_view(request):
                 salt = user.salt
                 password_encode = create_md5(password, salt)
                 if password_encode != user.password:
-                    return response(PARAMS_ERROR, '用户名或密码错误！', error=True)
+                    return response(PARAMS_ERROR, '邮箱或密码错误！', error=True)
                 else:
-                    dic = {'email': email, 'name': user.name}
+                    dic = {'email': user.email, 'name': user.name}
                     token = generate_token(dic, 60 * 60 * 24)
                     return response(SUCCESS, '登录成功！', data=token)
             except Exception as e:
                 print(e)
                 return response(MYSQL_ERROR, '用户不存在！', error=True)
         else:
-            return response(PARAMS_ERROR, '用户名或密码错误！', error=True)
+            return response(PARAMS_ERROR, '邮箱和密码不可为空', error=True)
 
 
 @allowed_methods(['GET'])
@@ -371,3 +378,23 @@ def clear_histories(request):
     user: User
     user.histories.clear()
     return response(SUCCESS, '清空浏览记录成功！')
+
+
+@allowed_methods(['POST'])
+@login_required
+def change_user_info(request):
+    name = request.POST.get('name', '')
+    real_name = request.POST.get('real_name', '')
+    position = request.POST.get('position', '')
+    organization = request.POST.get('organization', '')
+    subject = request.POST.get('subject', '')
+    # 进行更新
+    user = request.user
+    user: User
+    user.name = name
+    user.real_name = real_name
+    user.position = position
+    user.organization = organization
+    user.subject = subject
+    user.save()
+    return response(SUCCESS, '修改用户信息成功！')
