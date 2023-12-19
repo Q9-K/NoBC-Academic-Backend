@@ -13,6 +13,7 @@ def allowed_methods(methods):
     参数:
     - methods: 一个包含允许的HTTP请求方法的列表，如 ['GET', 'POST']。
     """
+
     def decorator(view_func):
         @wraps(view_func)
         def _wrapped_view(request, *args, **kwargs):
@@ -26,6 +27,7 @@ def allowed_methods(methods):
             return view_func(request, *args, **kwargs)
 
         return _wrapped_view
+
     return decorator
 
 
@@ -33,6 +35,7 @@ def login_required(view_func):
     """
     装饰器，用于限制视图函数只能在登录状态下访问。
     """
+
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
         # 取出token,查找是否有此用户,token放在HTTP请求的header中
@@ -52,4 +55,5 @@ def login_required(view_func):
                 return response(PARAMS_ERROR, '用户未登录', error=True)
         else:
             return response(PARAMS_ERROR, '用户未登录', error=True)
+
     return _wrapped_view

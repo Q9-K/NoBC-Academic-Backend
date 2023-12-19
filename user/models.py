@@ -34,5 +34,5 @@ class User(models.Model):
 
 class History(models.Model):
     user = models.ForeignKey(to='user.User', on_delete=models.CASCADE)
-    paper = models.ForeignKey(to='work.Work', on_delete=models.CASCADE)
-    date_time = models.DateTimeField(auto_now_add=True)
+    work = models.ForeignKey(to='work.Work', on_delete=models.CASCADE)
+    date_time = models.DateTimeField(auto_now_add=True, primary_key=True)
