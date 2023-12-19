@@ -2,6 +2,7 @@ import random
 from datetime import datetime
 
 from django.core.mail import send_mail
+
 from NoBC.status_code import *
 from author.models import Author
 from concept.models import Concept
@@ -9,7 +10,6 @@ from config import BUAA_MAIL_USER
 from utils.Md5 import create_md5, create_salt
 from utils.Response import response
 from utils.Token import generate_token
-from utils.Token import get_value
 from utils.view_decorator import login_required, allowed_methods
 from work.models import Work
 from .models import User, History
@@ -85,7 +85,7 @@ def active_user(request):
                     return response(SUCCESS, '注册成功', data=token)
                 else:
                     return response(PARAMS_ERROR, '验证码错误', error=True)
-            except Exception:
+            except User.DoesNotExist:
                 return response(MYSQL_ERROR, '该用户已经注册过', error=True)
         else:
             return response(PARAMS_ERROR, '提交字段名不可为空！', error=True)
@@ -277,7 +277,7 @@ def remove_focus_concept(request):
         concept = Concept.objects.get(id=concept_id)
         user.concept_focus.remove(concept)
         return response(SUCCESS, '取消关注领域成功！')
-    except Exception:
+    except Concept.DoesNotExist:
         return response(MYSQL_ERROR, '领域不存在！', error=True)
 
 
