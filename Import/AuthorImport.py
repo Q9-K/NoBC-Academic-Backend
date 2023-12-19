@@ -22,6 +22,13 @@ class ScholarDocument(Document):
     )
     display_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
     works_count = Integer()
+    summary_stats = Nested(
+        properties={
+            "2yr_mean_citedness": Integer(),
+            "h_index": Integer(),
+            "i10_index": Integer(),
+        }
+    )
     last_known_institution = Nested(
         properties={
             "id": Keyword(),
@@ -57,7 +64,7 @@ def generate_actions(file_name):
         for line in lines:
             data = json.loads(line)
             properties_to_extract = ["id", "cited_by_count", "counts_by_year", "display_name",
-                                     "works_count", "last_known_institution"]
+                                     "works_count", "summary_stats", "last_known_institution"]
             data = {key: data[key] for key in properties_to_extract}
             data['user_id'] = None
             document = {
