@@ -3,8 +3,7 @@ import os
 import gzip
 import random
 from datetime import datetime
-from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Date, Float, Boolean, Completion, \
-    Object
+from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Date, Completion, Object
 from elasticsearch.helpers import parallel_bulk
 from elasticsearch import Elasticsearch
 from path import data_path
