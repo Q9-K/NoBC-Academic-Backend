@@ -137,7 +137,8 @@ def generate_actions(file_name):
                 properties_to_extract = ["author", "institutions", "is_corresponding"]
                 authorship = {key: authorship[key] for key in properties_to_extract}
                 authorship["author"] = {
-                    "id": authorship["author"]["id"][len('https://openalex.org/'):] if authorship["author"].get('id') else None,
+                    "id": authorship["author"]["id"][len('https://openalex.org/'):] if authorship["author"].get(
+                        'id') else None,
                     "display_name": authorship["author"]["display_name"],
                 }
                 institutions = []
@@ -212,12 +213,28 @@ def run(file_name):
                         thread_count=8, queue_size=20,
                         chunk_size=1000, request_timeout=60
                         ), maxlen=0)
+    save_imported_files(file_name)
 
 
 def process_files(folder):
+    imported_files = get_imported_files()
     files = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
     for file in files:
-        run(os.path.join(folder, file))
+        if file not in imported_files:
+            run(os.path.join(folder, file))
+
+
+def save_imported_files(file_name):
+    with open('imported_files.txt', 'a') as file:
+        file.write(file_name + '\n')
+
+
+def get_imported_files():
+    if not os.path.exists('imported_files.txt'):
+        return set()
+
+    with open('imported_files.txt', 'r') as file:
+        return set(line.strip() for line in file)
 
 
 if __name__ == "__main__":
