@@ -98,8 +98,6 @@ def run(file_name):
 
                 if display_name:
                     data['chinese_display_name'] = display_name.get('zh-cn')
-                    if not data['chinese_display_name']:
-                        data['chinese_display_name'] = display_name.get('zh', '')
                 if description:
                     data['description'] = description.get('en', '')
                     data['chinese_description'] = description.get('zh-cn')
