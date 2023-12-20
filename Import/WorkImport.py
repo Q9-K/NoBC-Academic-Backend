@@ -196,8 +196,16 @@ def generate_actions(file_name):
                 positions = [(word, pos) for word, pos_list in abstract.items() for pos in pos_list]
                 positions.sort(key=lambda x: x[1])
                 data['abstract'] = ' '.join([word for word, _ in positions])
-            data['related_works'] = data['related_works'][0:10]
-            data['referenced_works'] = data['referenced_works'][0:10]
+
+            # 处理related_works和referenced_works
+            related_works = []
+            for related_work in data['related_works'][0:10]:
+                related_works.append(related_work[len('https://openalex.org/'):])
+            data['related_works'] = related_works
+            referenced_works = []
+            for referenced_work in data['referenced_works'][0:10]:
+                referenced_works.append(referenced_work[len('https://openalex.org/'):])
+            data['referenced_works'] = referenced_works
             document = {
                 '_index': INDEX_NAME,
                 '_source': data,
