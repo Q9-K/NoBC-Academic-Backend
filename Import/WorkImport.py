@@ -137,7 +137,7 @@ def generate_actions(file_name):
                 properties_to_extract = ["author", "institutions", "is_corresponding"]
                 authorship = {key: authorship[key] for key in properties_to_extract}
                 authorship["author"] = {
-                    "id": authorship["author"]["id"][len('https://openalex.org/'):] if authorship["author"]["id"] else None,
+                    "id": authorship["author"]["id"][len('https://openalex.org/'):] if authorship["author"].get('id') else None,
                     "display_name": authorship["author"]["display_name"],
                 }
                 institutions = []
@@ -155,7 +155,7 @@ def generate_actions(file_name):
             concepts = []
             for concept in data["concepts"][0:10]:
                 concept = {
-                    "id": concept["id"][len('https://openalex.org/'):] if concept["id"] else None,
+                    "id": concept["id"][len('https://openalex.org/'):] if concept.get('id') else None,
                     "wikidata": concept["wikidata"],
                     "display_name": concept["display_name"],
                     "level": concept["level"],
@@ -178,10 +178,10 @@ def generate_actions(file_name):
                 }
                 source = location["source"]
                 source = {
-                    "id": source["id"][len('https://openalex.org/'):] if source["id"] else None,
+                    "id": source["id"][len('https://openalex.org/'):] if source.get('id') else None,
                     "display_name": source["display_name"],
                     "host_organization": source["host_organization"][len('https://openalex.org/'):]
-                    if source["host_organization"] else None,
+                    if source.get('host_organization') else None,
                     "host_organization_name": source["host_organization_name"],
                     "type": source["type"],
                 }
