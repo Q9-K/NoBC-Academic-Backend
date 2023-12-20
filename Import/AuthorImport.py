@@ -28,6 +28,13 @@ class ScholarDocument(Document):
             "2yr_mean_citedness": Float(),
             "h_index": Integer(),
             "i10_index": Integer(),
+            "oa_percent": Float(),
+            "works_count": Integer(),
+            "cited_by_count": Integer(),
+            "2yr_works_count": Integer(),
+            "2yr_cited_by_count": Integer(),
+            "2yr_i10_index": Integer(),
+            "2yr_h_index": Integer()
         }
     )
     last_known_institution = Object(
