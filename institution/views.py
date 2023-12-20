@@ -117,7 +117,7 @@ def getInstitutionDetail(request):
         # 查询
         search = Search(using=ES_CONN, index='institution').query('term', id=institution_id)
         key_list = ['display_name', 'type', 'chinese_display_name', 'image_url', 'homepage_url',
-                    'lineage', 'counts_by_year']
+                    'lineage', 'counts_by_year', 'repositories']
         deeper_name_map = {'associated_institutions': ['id', 'display_name'],
                            'geo': ['country_code', 'city']}
         ret = get_return_data(search, 'institution', key_list, deeper_name_map)

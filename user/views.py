@@ -145,9 +145,9 @@ def get_histories(request):
     histories = user.history_set.all()
     histories_info = [{'work_id': history.work.id, 'date_time': history.date_time} for history in histories]
     # 遍历id,查找论文拼接信息
-    data = {'histories': []}
+    data = []
     for history in histories_info:
-        data['histories'].append(get_work_info(history, user))
+        data.append(get_work_info(history, user))
     return response(SUCCESS, '获取用户浏览记录成功！', data=data)
 
 
@@ -163,14 +163,16 @@ def get_work_info(work: dict, user: User = None):
     # 拼接论文信息,需要title, author_name
     work_data = dict()
     work_data['title'] = ret['title']
-    work_data['authors'] = [{'name': authorship['author']['display_name']} for authorship in ret['authorships']]
+    work_data['authors'] = [{'name': authorship['author']['display_name'],
+                             'id': authorship['author']['id'],
+                             } for authorship in ret['authorships']]
     # 如果传入了user,则判断是否收藏;否则默认为收藏
     if user:
         work_data['collected'] = user.favorites.filter(id=work['work_id']).exists()
-        work_data['date_time'] = work['date_time']
+        work_data['collectionTime'] = None
     else:
         work_data['collected'] = True
-        work_data['collection_time'] = work['collection_time']
+        work_data['collectionTime'] = work['collection_time']
     return work_data
 
 
@@ -188,9 +190,9 @@ def get_favorites(request):
     favorites_info = [{'work_id': favorite.work.id, 'collection_time': favorite.collection_time}
                       for favorite in favorites]
     # 遍历id,查找论文拼接信息
-    data = {'favorites': []}
+    data = []
     for favorite in favorites_info:
-        data['favorites'].append(get_work_info(favorite))
+        data.append(get_work_info(favorite))
     return response(SUCCESS, '获取用户收藏记录成功！', data=data)
 
 
@@ -233,8 +235,10 @@ def get_author_info(author_id: str, user: User = None):
     # 拼接学者信息,需要name, work_count, h_index, followed
     author_data = dict()
     author_data['name'] = ret['display_name']
-    author_data['work_count'] = ret['works_count']
-    # author_data['h_index'] = ret['summary_stats']['h_index']
+    author_data['papers'] = ret['works_count']
+    author_data['H_index'] = None
+    author_data['avatar'] = None
+    author_data['englishAffiliation'] = None
     # 如果传入了user,则判断是否关注;否则默认为关注
     if user:
         author_data['followed'] = user.follows.filter(id=author_id).exists()
@@ -256,9 +260,9 @@ def get_follows(request):
     authors = user.follows.all()
     authors_id = [author.to_string()['id'] for author in authors]
     # 遍历id,查找学者拼接信息
-    data = {'scholars': []}
+    data = []
     for author_id in authors_id:
-        data['scholars'].append(get_author_info(author_id))
+        data.append(get_author_info(author_id))
     return response(SUCCESS, '获取用户关注的学者成功！', data=data)
 
 
