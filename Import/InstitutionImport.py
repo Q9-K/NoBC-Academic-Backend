@@ -61,6 +61,12 @@ class InstitutionDocument(Document):
         }
     )
     chinese_display_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
+    repositories = Nested(
+        properties={
+            'id': Keyword(),
+            'display_name': Text()
+        }
+    )
 
     class Index:
         name = 'institution'
@@ -98,7 +104,7 @@ def run(client, file_name):
                                      "works_api_url", "works_count", "associated_institutions", "counts_by_year", "geo",
                                      "summary_stats"]
             data = {key: origin_data.get(key) for key in properties_to_extract}
-            international = origin_data.get('international', {})
+            international = origin_data.get('international', None)
             data['chinese_display_name'] = ''
             if international:
                 display_name = international.get('display_name', None)
@@ -108,6 +114,12 @@ def run(client, file_name):
                         data['chinese_display_name'] = display_name.get('zh', None)
                         if not data['chinese_display_name']:
                             data['chinese_display_name'] = display_name.get('zh_hans', '')
+            # 截取repositories
+            repositories = origin_data.get('repositories', None)
+            data['repositories'] = {}
+            if repositories:
+                data['repositories']['id'] = repositories['id']
+                data['repositories']['display_name'] = repositories['display_name']
             if data.get('id'):
                 i += 1
                 data_list.append({
