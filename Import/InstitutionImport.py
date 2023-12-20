@@ -116,10 +116,12 @@ def run(client, file_name):
                             data['chinese_display_name'] = display_name.get('zh_hans', '')
             # 截取repositories
             repositories = origin_data.get('repositories', None)
-            data['repositories'] = {}
+            data['repositories'] = []
+            repositories_list = []
             if repositories:
-                data['repositories']['id'] = repositories['id']
-                data['repositories']['display_name'] = repositories['display_name']
+                for repository in repositories:
+                    repositories_list.append({'id': repository['id'], 'display_name': repository['display_name']})
+                data['repositories'] = repositories_list
             if data.get('id'):
                 i += 1
                 data_list.append({
