@@ -189,7 +189,7 @@ def generate_actions(file_name):
                 locations.append(location)
             data['locations'] = locations
             # 设置vist_count
-            data['visit_count'] = random.random()
+            data['visit_count'] = random.randint(50, 10000)
             data['abstract'] = None
             if abstract:
                 positions = [(word, pos) for word, pos_list in abstract.items() for pos in pos_list]
