@@ -107,7 +107,6 @@ def run(file_name):
                         data['chinese_description'] = description.get('zh')
                         if not data['chinese_description']:
                             data['chinese_description'] = description.get('zh-hans', '')
-
             properties_to_extract = ["id", "cited_by_count", "counts_by_year", "summary_stats", "level", "display_name",
                                      "works_count", "image_url", "ancestors",
                                      "related_concepts", "counts_by_year", "works_api_url", "chinese_display_name",
