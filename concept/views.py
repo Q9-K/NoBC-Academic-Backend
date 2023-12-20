@@ -6,9 +6,11 @@ from django.http import JsonResponse
 from elasticsearch import Elasticsearch
 from elasticsearch_dsl import Search, Q
 from elasticsearch_dsl.connections import connections
+
+from user.models import User
 from NoBC.status_code import *
 from utils.generate_image import generate_image
-from utils.view_decorator import allowed_methods
+from utils.view_decorator import allowed_methods,login_required
 from utils.translate import translate
 
 # Create your views here.
@@ -185,11 +187,14 @@ def get_concept_by_id(request):
         if source_data['chinese_description'] == '':
             all = translate(source_data['description'])
             source_data['chinese_description'] = all
-        if source_data['image_url'] == '':
-            if source_data['chinese_display_name'] == '':
-                source_data['image_url'] = generate_image(source_data['display_name'])
-            else:
-                source_data['image_url'] = generate_image(source_data['chinese_display_name'])
+        #if not source_data['image_url']:
+
+            # todo 对象存储
+
+            # if source_data['chinese_display_name'] == '':
+            #     source_data['image_url'] = generate_image(source_data['display_name'])
+            # else:
+            #     source_data['image_url'] = generate_image(source_data['chinese_display_name'])
 
         update_body = {"doc": source_data}
         client.update(index="concept", id=document_id, body=update_body)
@@ -270,6 +275,34 @@ def search_works_with_empty_concept_id(request):
 
     # 执行搜索
     response = client.search(index="work", body=query)
+    # 处理结果
+    results = [hit["_source"] for hit in response['hits']['hits']]
+    return JsonResponse(results, safe=False)
+@allowed_methods(['GET'])
+@login_required
+def get_works_with_followed_concepts(request):
+    user = request.user
+    #User.objects.filter(id=user.id
+
+    # 构建查询
+    query = {
+        "query": {
+            "nested": {
+                "path": "concepts",
+                "query": {
+                    "bool": {
+                        "must": [
+                            {"terms": {"concepts.id": followed_concepts}}
+                        ]
+                    }
+                }
+            }
+        }
+    }
+
+    # 执行搜索
+    response = client.search(index="work", body=query)
+
     # 处理结果
     results = [hit["_source"] for hit in response['hits']['hits']]
     return JsonResponse(results, safe=False)
