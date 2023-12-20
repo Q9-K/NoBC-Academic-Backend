@@ -1,19 +1,24 @@
 import random
 import re
 from datetime import datetime
+from pprint import pprint
 
 from django.core.mail import send_mail
+from elasticsearch_dsl import connections, Search
 
 from NoBC.status_code import *
 from author.models import Author
 from concept.models import Concept
-from config import BUAA_MAIL_USER
+from config import BUAA_MAIL_USER, ELAS_HOST, ELAS_USER, ELAS_PASSWORD
+from message.models import Certification
 from utils.Md5 import create_md5, create_salt
 from utils.Response import response
 from utils.Token import generate_token
 from utils.view_decorator import login_required, allowed_methods
 from work.models import Work
-from .models import User, History
+from .models import User, History, Favorite
+
+ES_CONN = connections.create_connection(hosts=[ELAS_HOST], http_auth=(ELAS_USER, ELAS_PASSWORD), timeout=20)
 
 
 def send_email(email) -> int:
@@ -137,9 +142,36 @@ def get_histories(request):
     """
     user = request.user
     user: User
-    histories = user.histories.all()
-    data = [history.to_string() for history in histories]
+    histories = user.history_set.all()
+    histories_info = [{'work_id': history.work.id, 'date_time': history.date_time} for history in histories]
+    # 遍历id,查找论文拼接信息
+    data = {'histories': []}
+    for history in histories_info:
+        data['histories'].append(get_work_info(history, user))
     return response(SUCCESS, '获取用户浏览记录成功！', data=data)
+
+
+def get_work_info(work: dict, user: User = None):
+    """
+    获取论文信息根据论文id查找论文并拼接信息
+    """
+    search = Search(using=ES_CONN, index='work').query('term', id=work['work_id'])
+    ret = search.execute().to_dict()['hits']['hits']
+    if len(ret) == 0:
+        return None
+    ret = ret[0]['_source']
+    # 拼接论文信息,需要title, author_name
+    work_data = dict()
+    work_data['title'] = ret['title']
+    work_data['authors'] = [{'name': authorship['author']['display_name']} for authorship in ret['authorships']]
+    # 如果传入了user,则判断是否收藏;否则默认为收藏
+    if user:
+        work_data['collected'] = user.favorites.filter(id=work['work_id']).exists()
+        work_data['date_time'] = work['date_time']
+    else:
+        work_data['collected'] = True
+        work_data['collection_time'] = work['collection_time']
+    return work_data
 
 
 @allowed_methods(['GET'])
@@ -152,8 +184,13 @@ def get_favorites(request):
     """
     user = request.user
     user: User
-    favorites = user.favorites.all()
-    data = [favorite.to_string() for favorite in favorites]
+    favorites = user.favorite_set.all()
+    favorites_info = [{'work_id': favorite.work.id, 'collection_time': favorite.collection_time}
+                      for favorite in favorites]
+    # 遍历id,查找论文拼接信息
+    data = {'favorites': []}
+    for favorite in favorites_info:
+        data['favorites'].append(get_work_info(favorite))
     return response(SUCCESS, '获取用户收藏记录成功！', data=data)
 
 
@@ -187,6 +224,25 @@ def get_messages(request):
     return response(SUCCESS, '获取用户站内信成功！', data=data)
 
 
+def get_author_info(author_id: str, user: User = None):
+    search = Search(using=ES_CONN, index='author').query('term', id=author_id)
+    ret = search.execute().to_dict()['hits']['hits']
+    if len(ret) == 0:
+        return None
+    ret = ret[0]['_source']
+    # 拼接学者信息,需要name, work_count, h_index, followed
+    author_data = dict()
+    author_data['name'] = ret['display_name']
+    author_data['work_count'] = ret['works_count']
+    # author_data['h_index'] = ret['summary_stats']['h_index']
+    # 如果传入了user,则判断是否关注;否则默认为关注
+    if user:
+        author_data['followed'] = user.follows.filter(id=author_id).exists()
+    else:
+        author_data['followed'] = True
+    return author_data
+
+
 @allowed_methods(['GET'])
 @login_required
 def get_follows(request):
@@ -197,8 +253,12 @@ def get_follows(request):
     """
     user = request.user
     user: User
-    scholars = user.follows.all()
-    data = [scholar.to_string() for scholar in scholars]
+    authors = user.follows.all()
+    authors_id = [author.to_string()['id'] for author in authors]
+    # 遍历id,查找学者拼接信息
+    data = {'scholars': []}
+    for author_id in authors_id:
+        data['scholars'].append(get_author_info(author_id))
     return response(SUCCESS, '获取用户关注的学者成功！', data=data)
 
 
@@ -220,6 +280,8 @@ def follow_scholar(request):
     except Author.DoesNotExist:
         # 不存在则创建
         scholar = Author.objects.create(id=scholar_id)
+    if user.follows.filter(id=scholar_id).exists():
+        return response(PARAMS_ERROR, '已关注该学者！', error=True)
     user.follows.add(scholar)
     return response(SUCCESS, '关注学者成功！')
 
@@ -238,11 +300,11 @@ def unfollow_scholar(request):
     if not scholar_id:
         return response(PARAMS_ERROR, '缺少学者id！', error=True)
     try:
-        scholar = Author.objects.get(id=scholar_id)
+        scholar = user.follows.get(id=scholar_id)
         user.follows.remove(scholar)
         return response(SUCCESS, '取消关注学者成功！')
     except Author.DoesNotExist:
-        return response(MYSQL_ERROR, '学者不存在！', error=True)
+        return response(MYSQL_ERROR, '未关注该学者！', error=True)
 
 
 @allowed_methods(['POST'])
@@ -263,6 +325,9 @@ def add_focus_concept(request):
     except Concept.DoesNotExist:
         # 领域不存在,创建领域
         concept = Concept.objects.create(id=concept_id)
+        concept.save()
+    if user.concept_focus.filter(id=concept_id).exists():
+        return response(PARAMS_ERROR, '已关注该领域！', error=True)
     user.concept_focus.add(concept)
     return response(SUCCESS, '关注领域成功！')
 
@@ -281,11 +346,11 @@ def remove_focus_concept(request):
     if not concept_id:
         return response(PARAMS_ERROR, '缺少领域id！', error=True)
     try:
-        concept = Concept.objects.get(id=concept_id)
+        concept = user.concept_focus.get(id=concept_id)
         user.concept_focus.remove(concept)
         return response(SUCCESS, '取消关注领域成功！')
     except Concept.DoesNotExist:
-        return response(MYSQL_ERROR, '领域不存在！', error=True)
+        return response(MYSQL_ERROR, '未关注该领域！', error=True)
 
 
 @allowed_methods(['GET'])
@@ -341,8 +406,12 @@ def add_favorite(request):
         return response(PARAMS_ERROR, '缺少论文id！', error=True)
     # 论文不存在,创建论文
     if not Work.objects.filter(id=work_id):
-        Work.objects.create(id=work_id)
-    user.favorites.add(work_id)
+        work = Work.objects.create(id=work_id)
+        work.save()
+    work = Work.objects.get(id=work_id)
+    if user.favorites.filter(id=work_id).exists():
+        return response(PARAMS_ERROR, '已收藏该论文！', error=True)
+    Favorite.objects.create(user=user, work=work, collection_time=datetime.now())
     return response(SUCCESS, '添加收藏成功！')
 
 
@@ -359,9 +428,8 @@ def remove_favorite(request):
     work_id = request.POST.get('work_id', None)
     if not work_id:
         return response(PARAMS_ERROR, '缺少论文id！', error=True)
-    # 论文不存在,创建论文
-    if not Work.objects.filter(id=work_id):
-        Work.objects.create(id=work_id)
+    if not user.favorites.filter(id=work_id).exists():
+        return response(PARAMS_ERROR, '未收藏该论文！', error=True)
     user.favorites.remove(work_id)
     return response(SUCCESS, '取消收藏成功！')
 
@@ -398,3 +466,63 @@ def change_user_info(request):
     user.subject = subject
     user.save()
     return response(SUCCESS, '修改用户信息成功！')
+
+
+@allowed_methods(['POST'])
+@login_required
+def de_authentication(request):
+    """
+    解除学者人这个
+    :param request:
+    :return:
+    """
+    user = request.user
+    user: User
+    user.scholar_identity = None
+    user.save()
+    return response(SUCCESS, '解除认证成功！')
+
+
+@allowed_methods(['POST'])
+@login_required
+def apply_for_certification(request):
+    """
+    申请认证
+    :param request: token, author_id
+    :return: [code, msg, data, error]
+    """
+    user = request.user
+    user: User
+    author_id = request.POST.get('author_id', None)
+    idcard_img_url = request.POST.get('idcard_img_url', None)
+    if author_id and idcard_img_url:
+        try:
+            author = Author.objects.get(id=author_id)
+        except Author.DoesNotExist:
+            # 不存在则创建
+            author = Author.objects.create(id=author_id)
+        # TODO 使用七牛云对象存储上传图片
+        # 创建认证消息
+        certification = Certification.objects.create(user=user, author=author, idcard_img_url=idcard_img_url)
+        certification.save()
+    else:
+        return response(PARAMS_ERROR, '字段不可为空', error=True)
+    return response(SUCCESS, '申请认证成功！')
+
+
+@allowed_methods(['GET'])
+@login_required
+def check_concept_focus(request):
+    """
+    检查用户是否关注领域
+    :param request: token, concept_id
+    :return: [code, msg, data, error]
+    """
+    user = request.user
+    user: User
+    concept_id = request.GET.get('concept_id', None)
+    if not concept_id:
+        return response(PARAMS_ERROR, '缺少领域id！', error=True)
+    data = dict()
+    data['focus'] = user.concept_focus.filter(id=concept_id).exists()
+    return response(SUCCESS, '检查用户是否关注领域成功！', data=data)
