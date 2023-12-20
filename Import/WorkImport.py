@@ -153,7 +153,7 @@ def generate_actions(file_name):
             data["authorships"] = authorships
             # 处理concepts
             concepts = []
-            for concept in data["concepts"]:
+            for concept in data["concepts"][0:10]:
                 concept = {
                     "id": concept["id"][len('https://openalex.org/'):],
                     "wikidata": concept["wikidata"],
@@ -171,7 +171,7 @@ def generate_actions(file_name):
             data["pdf_url"] = pdf_url
             # 处理locations
             locations = []
-            for location in data["locations"]:
+            for location in data["locations"][0:10]:
                 location = {
                     "source": location["source"],
                     "landing_page_url": location["landing_page_url"],
@@ -180,7 +180,8 @@ def generate_actions(file_name):
                 source = {
                     "id": source["id"][len('https://openalex.org/'):],
                     "display_name": source["display_name"],
-                    "host_organization": source["host_organization"][len('https://openalex.org/'):],
+                    "host_organization": source["host_organization"][len('https://openalex.org/'):]
+                    if source["host_organization"] else None,
                     "host_organization_name": source["host_organization_name"],
                     "type": source["type"],
                 }
@@ -194,6 +195,8 @@ def generate_actions(file_name):
                 positions = [(word, pos) for word, pos_list in abstract.items() for pos in pos_list]
                 positions.sort(key=lambda x: x[1])
                 data['abstract'] = ' '.join([word for word, _ in positions])
+            data['related_works'] = data['related_works'][0:10]
+            data['referenced_works'] = data['referenced_works'][0:10]
             document = {
                 '_index': INDEX_NAME,
                 '_source': data,
