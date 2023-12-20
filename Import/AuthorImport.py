@@ -28,6 +28,13 @@ class ScholarDocument(Document):
             "2yr_mean_citedness": Float(),
             "h_index": Integer(),
             "i10_index": Integer(),
+            "oa_percent": Float(),
+            "works_count": Integer(),
+            "cited_by_count": Integer(),
+            "2yr_works_count": Integer(),
+            "2yr_cited_by_count": Integer(),
+            "2yr_i10_index": Integer(),
+            "2yr_h_index": Integer()
         }
     )
     last_known_institution = Object(
@@ -87,7 +94,15 @@ def generate_actions(file_name):
             properties_to_extract = ["id", "cited_by_count", "counts_by_year", "display_name",
                                      "works_count", "summary_stats", "last_known_institution"]
             data = {key: data[key] for key in properties_to_extract}
-            data['user_id'] = None
+
+            properties_to_manual_set = ["user_id", "education_background", "personal_summary", "work_experience",
+                                        "avatar", "chinese_name", "title", "phone", "fax", "email", "address",
+                                        "personal_website", "official_website", "google", "twitter", "facebook",
+                                        "youtube", "gender", "language"]
+
+            for key in properties_to_manual_set:
+                data[key] = None
+
             document = {
                 '_index': 'author',
                 '_op_type': 'index',
