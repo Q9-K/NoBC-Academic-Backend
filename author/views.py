@@ -132,7 +132,27 @@ def get_author_by_id(request):
     es_res = es_get_author_by_id(author_id)
 
     if es_res['hits']['total']['value'] != 0:
-        res = es_res['hits']['hits'][0]['_source']
+        source = es_res['hits']['hits'][0]['_source']
+        res = {
+            'avatar': source['avatar'],
+            'name': source['display_name'],
+            'chineseName': source['chinese_name'],
+            'title': source['title'],
+            'phone': source['phone'],
+            'fax': source['fax'],
+            'email': source['email'],
+            'englishAffiliation': source['last_known_institution']['display_name'],
+            'chineseAffiliation': source['last_known_institution']['chinese_name'],
+            'address': source['address'],
+            'personalWebsite': source['personal_website'],
+            'officialWebsite': source['official_website'],
+            'google': source['google'],
+            'twitter': source['twitter'],
+            'facebook': source['facebook'],
+            'youtube': source['youtube'],
+            'gender': source['gender'],
+            'language': source['language']
+        }
     else:
         res = {}
 
@@ -232,7 +252,15 @@ def get_scholar_metrics(request):
         "_source": ["works_count", "cited_by_count", "summary_stats"]
     }
     es_res = elasticsearch_connection.search(index='author', body=query_body)
-    res = es_res['hits']['hits'][0]['_source']
+
+    source = es_res['hits']['hits'][0]['_source']
+    res = {
+        'Papers': source['works_count'],
+        'Citation': source['cited_by_count'],
+        'H-Index': source['summary_stats']['h_index'],
+        'G-Index': source['summary_stats']['g_index'],
+    }
+
     return JsonResponse({
         'code': SUCCESS,
         'msg': 'success',
