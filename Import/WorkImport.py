@@ -177,15 +177,16 @@ def generate_actions(file_name):
                     "landing_page_url": location["landing_page_url"],
                 }
                 source = location["source"]
-                source = {
-                    "id": source["id"][len('https://openalex.org/'):] if source.get('id') else None,
-                    "display_name": source["display_name"],
-                    "host_organization": source["host_organization"][len('https://openalex.org/'):]
-                    if source.get('host_organization') else None,
-                    "host_organization_name": source["host_organization_name"],
-                    "type": source["type"],
-                }
-                location["source"] = source
+                if source:
+                    source = {
+                        "id": source["id"][len('https://openalex.org/'):] if source.get('id') else None,
+                        "display_name": source["display_name"],
+                        "host_organization": source["host_organization"][len('https://openalex.org/'):]
+                        if source.get('host_organization') else None,
+                        "host_organization_name": source["host_organization_name"],
+                        "type": source["type"],
+                    }
+                    location["source"] = source
                 locations.append(location)
             data['locations'] = locations
             # 设置vist_count
