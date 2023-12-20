@@ -103,7 +103,7 @@ def run(file_name):
                 description = international.get('description')
 
                 if display_name:
-                    data['chinese_display_name'] = display_name.get('zh-cn')
+                    data['chinese_display_name'] = display_name.get('zh-cn','')
                 if description:
                     data['description'] = description.get('en', '')
                     data['chinese_description'] = description.get('zh-cn')
