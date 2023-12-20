@@ -10,6 +10,7 @@ from path import data_path
 connections.create_connection(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
 client = Elasticsearch(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
 
+
 class ScholarDocument(Document):
     id = Keyword()
     cited_by_count = Integer()
@@ -85,7 +86,7 @@ if __name__ == "__main__":
     ScholarDocument.init()
     start_time = datetime.now()
     print("Start insert to ElasticSearch at {}".format(datetime.now()))
-    root_path = data_path+'authors'
+    root_path = data_path + 'authors'
     # 获取所有子文件夹
     sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
     for sub_folder in sub_folders:
