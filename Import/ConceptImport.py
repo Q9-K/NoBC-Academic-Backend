@@ -88,6 +88,12 @@ def run(file_name):
         start_time = time.perf_counter()
         for line in file:
             data = json.loads(line)
+            for ancestor in data.get('ancestors', []):
+                ancestor['chinese_display_name'] = ''
+
+             # 为 related_concepts 中的每个元素添加空的 chinese_display_name
+            for related_concept in data.get('related_concepts', []):
+                related_concept['chinese_display_name'] = ''
             international = data.get('international', {})
             data['chinese_display_name'] = ''
             data['description'] = ''
@@ -98,8 +104,6 @@ def run(file_name):
 
                 if display_name:
                     data['chinese_display_name'] = display_name.get('zh-cn')
-                    if not data['chinese_display_name']:
-                        data['chinese_display_name'] = display_name.get('zh', '')
                 if description:
                     data['description'] = description.get('en', '')
                     data['chinese_description'] = description.get('zh-cn')
