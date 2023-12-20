@@ -2,13 +2,14 @@ import os
 import json
 import gzip
 from datetime import datetime
-from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested
+from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Object, Float
 from elasticsearch.helpers import parallel_bulk
 from elasticsearch import Elasticsearch
 from path import data_path
 
 connections.create_connection(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
 client = Elasticsearch(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
+
 
 class ScholarDocument(Document):
     id = Keyword()
@@ -22,24 +23,44 @@ class ScholarDocument(Document):
     )
     display_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
     works_count = Integer()
-    summary_stats = Nested(
+    summary_stats = Object(
         properties={
-            "2yr_mean_citedness": Integer(),
+            "2yr_mean_citedness": Float(),
             "h_index": Integer(),
             "i10_index": Integer(),
         }
     )
-    last_known_institution = Nested(
+    last_known_institution = Object(
         properties={
             "id": Keyword(),
             "ror": Keyword(index=False),
             "display_name": Text(),
             "country_code": Keyword(),
-            "type": Keyword(index=False),
-            "lineage": Keyword(index=False)
+            "type": Keyword(index=False)
         }
     )
+    # 额外维护的信息
     user_id = Keyword()
+
+    education_background = Text()
+    personal_summary = Text()
+    work_experience = Text()
+
+    avatar = Keyword(index=False)
+    chinese_name = Keyword()
+    title = Keyword(index=False)
+    phone = Keyword(index=False)
+    fax = Keyword(index=False)
+    email = Keyword(index=False)
+    address = Keyword(index=False)
+    personal_website = Keyword(index=False)
+    official_website = Keyword(index=False)
+    google = Keyword(index=False)
+    twitter = Keyword(index=False)
+    facebook = Keyword(index=False)
+    youtube = Keyword(index=False)
+    gender = Keyword(index=False)
+    language = Keyword(index=False)
 
     class Index:
         name = 'author'

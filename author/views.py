@@ -38,16 +38,25 @@ def get_author_by_name(request):
             }
         }
     if h_index_up != '' and h_index_down != '':
-        query_body['query']['bool'] = {
-            "must": {
-                "range": {
-                    "summary_stats.h_index": {
-                        "gte": h_index_down,
-                        "lte": h_index_up
+        # 不需要筛选institution
+        if query_body['query'].get('bool') is None:
+            query_body['query']['bool'] = {
+                "must": {
+                    "range": {
+                        "summary_stats.h_index": {
+                            "gte": h_index_down,
+                            "lte": h_index_up
+                        }
                     }
                 }
             }
-        }
+        else:
+            query_body['query']['bool']['must']['range'] = {
+                "summary_stats.h_index": {
+                    "gte": h_index_down,
+                    "lte": h_index_up
+                }
+            }
 
     es_query_res = elasticsearch_connection.search(index='author', body=query_body)
     res = {
@@ -59,25 +68,6 @@ def get_author_by_name(request):
 
     # 点击搜索按钮/按照聚合指标过滤时，order_by为空，这时候需要对结果进行按照 institution 和 h-index 范围进行聚合
     if order_by == '':
-        # institution 聚合
-        agg_body = {
-            "aggs": {
-                "agg_term_institution": {
-                    "terms": {
-                        "field": "last_known_institution.display_name.keyword",
-                    }
-                }
-            }
-        }
-        es_agg_res = elasticsearch_connection.search(index="author", body=agg_body)
-        res['institutions'] = []
-        for bucket in es_agg_res['aggregations']['agg_term_institution']['buckets']:
-            tmp_institution = {
-                'institution': bucket['key'],
-                'count': bucket['doc_count']
-            }
-            res['institutions'].append(tmp_institution)
-
         # h-index 聚合
         range_list = [{
             "to": 10
@@ -91,23 +81,35 @@ def get_author_by_name(request):
             "from": 50
         })
         agg_body = {
+            "query": {
+                "match": {
+                    "display_name": author_name
+                }
+            },
             "aggs": {
-                "agg_range_h_index": {
-                    "range": {
-                        "field": "summary_stats.h_index.keyword",
-                        "ranges": range_list
+                "agg_term_name": {
+                    "terms": {
+                        "field": "display_name.keyword",
                     }
                 }
             }
         }
         es_agg_res = elasticsearch_connection.search(index="author", body=agg_body)
-        res['h_index'] = []
-        for bucket in es_agg_res['aggregations']['agg_range_h_index']['buckets']:
-            tmp_h_index = {
-                'h_index': bucket['key'],
-                'count': bucket['doc_count']
-            }
-            res['h_index'].append(tmp_h_index)
+        # res['institutions'] = []
+        # for bucket in es_agg_res['aggregations']['agg_term_institution']['buckets']:
+        #     tmp_institution = {
+        #         'institution': bucket['key'],
+        #         'count': bucket['doc_count']
+        #     }
+        #     res['institutions'].append(tmp_institution)
+        #
+        # res['h_index'] = []
+        # for bucket in es_agg_res['aggregations']['agg_range_h_index']['buckets']:
+        #     tmp_h_index = {
+        #         'h_index': bucket['key'],
+        #         'count': bucket['doc_count']
+        #     }
+        #     res['h_index'].append(tmp_h_index)
 
     # 点击排序/分页按钮时，order_by不为空，不需要对结果进行聚合
     else:
@@ -117,7 +119,8 @@ def get_author_by_name(request):
         'code': SUCCESS,
         'error': False,
         'message': 'success',
-        'data': res
+        'data': res,
+        'es_res': es_agg_res
     })
 
 
@@ -278,7 +281,6 @@ def post_scholar_intro_information(request):
 @allowed_methods(['POST'])
 def post_scholar_basic_information(request):
     author_id = request.POST.get('authorId')
-
 
     # 写入es
     update_body = {}
