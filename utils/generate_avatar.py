@@ -222,6 +222,6 @@ def render_identicon(code, size, renderer=None):
 if __name__ == '__main__':
     import sys
 
-    img = render_identicon('10000000', )
+    img = render_identicon('10000000', 100)
     img.show()
 

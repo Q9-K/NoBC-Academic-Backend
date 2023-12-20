@@ -21,6 +21,10 @@ from .models import User, History, Favorite
 ES_CONN = connections.create_connection(hosts=[ELAS_HOST], http_auth=(ELAS_USER, ELAS_PASSWORD), timeout=20)
 
 
+def get_init_user_avatar(email: str):
+    key = email + '_avatar.png'
+
+
 def send_email(email) -> int:
     """
     发送邮件
