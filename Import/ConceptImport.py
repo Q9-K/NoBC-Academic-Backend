@@ -38,6 +38,7 @@ class ConceptDocument(Document):
         properties={
             "id": Keyword(),
             "display_name": Keyword(),
+            "chinese_display_name": Keyword(),
             "level": Integer(),
             "score": Double(),
         }
@@ -46,6 +47,7 @@ class ConceptDocument(Document):
         properties={
             "id": Keyword(),
             "display_name": Keyword(),
+            "chinese_display_name": Keyword(),
             "level": Integer(),
             "score": Double(),
         }

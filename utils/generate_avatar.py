@@ -1,5 +1,5 @@
+import random
 
-import PIL
 from PIL import Image
 from PIL import ImageColor
 from PIL import ImageDraw
@@ -213,15 +213,16 @@ class DonRenderer(IdenticonRendererBase):
                foreColor, ImageColor.getrgb('white')
 
 
-def render_identicon(code, size, renderer=None):
+def render_identicon(name,renderer=None):
+    size=100
+    code = random.randint(1, 100000000000)
     if not renderer:
         renderer = DonRenderer
-    return renderer(code).render(size)
+    renderer(code).render(size).save(name+'.png')
 
 
 if __name__ == '__main__':
-    import sys
 
-    img = render_identicon('10000000', )
-    img.show()
+    img = render_identicon('man')
+
 
