@@ -95,7 +95,7 @@ class WorkDocument(Document):
             'number_of_shards': 16,
             'number_of_replicas': 0,
             'index': {
-                'mapping.nested_objects.limit': 100000,
+                # 'mapping.nested_objects.limit': 100000,
                 'refresh_interval': '30s',
                 'translog': {
                     'durability': 'async',
@@ -132,7 +132,7 @@ def generate_actions(file_name):
             data['id'] = data['id'][len('https://openalex.org/'):]
             # 提取authorships
             authorships = []
-            for authorship in data['authorships']:
+            for authorship in data['authorships'][0:10]:
                 properties_to_extract = ["author", "institutions", "is_corresponding"]
                 authorship = {key: authorship[key] for key in properties_to_extract}
                 authorship["author"] = {
@@ -143,7 +143,7 @@ def generate_actions(file_name):
                 institutions = []
                 for institution in authorship["institutions"]:
                     institution = {
-                        "id": institution["id"],
+                        "id": institution["id"][len('https://openalex.org/'):],
                         "display_name": institution["display_name"],
                         "type": institution["type"],
                     }
