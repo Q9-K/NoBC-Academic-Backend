@@ -10,13 +10,8 @@ def es_get_works(author_id, page_num=-1, page_size=-1):
             'nested': {
                 'path': 'authorships',
                 'query': {
-                    'nested': {
-                        'path': 'authorships.author',
-                        'query': {
-                            'term': {
-                                'authorships.author.id': author_id
-                            }
-                        }
+                    'term': {
+                        'authorships.author.id': author_id
                     }
                 }
             }
