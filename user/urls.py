@@ -23,5 +23,7 @@ urlpatterns = [
     path('upload_user_avatar/', upload_user_avatar),
     path('get_user_avatar/', get_user_avatar),
     path('check_author_follow/', check_author_follow),
+    path('apply_for_certification/', apply_for_certification),
+    path('relieve_certification/', relieve_certification),
     path('test/', test),
 ]

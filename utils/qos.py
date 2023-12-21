@@ -14,8 +14,13 @@ def upload_file(key: str, file_path) -> bool:
     # 检查是否重名
     bucket = BucketManager(q)
     ret, info = bucket.stat(BUCKET_NAME, key)
+    # 如果存在则删除
     if ret:
-        return False
+        ret, info = bucket.delete(BUCKET_NAME, key)
+        if ret:
+            assert ret == {}
+        else:
+            return False
     # 生成上传 Token，可以指定过期时间等
     token = q.upload_token(BUCKET_NAME, key, 3600)
     # 要上传文件的本地路径

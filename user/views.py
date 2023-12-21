@@ -2,7 +2,6 @@ import os
 import random
 import re
 from datetime import datetime
-from pprint import pprint
 
 from django.core.mail import send_mail
 from elasticsearch_dsl import connections, Search
@@ -15,11 +14,11 @@ from message.models import Certification
 from utils.Md5 import create_md5, create_salt
 from utils.Response import response
 from utils.Token import generate_token
+from utils.generate_avatar import render_identicon
+from utils.qos import upload_file, get_file, delete_file
 from utils.view_decorator import login_required, allowed_methods
 from work.models import Work
 from .models import User, History, Favorite
-from utils.generate_avatar import render_identicon
-from utils.qos import upload_file, get_file, delete_file
 
 ES_CONN = connections.create_connection(hosts=[ELAS_HOST], http_auth=(ELAS_USER, ELAS_PASSWORD), timeout=20)
 
@@ -592,20 +591,30 @@ def apply_for_certification(request):
     user = request.user
     user: User
     author_id = request.POST.get('author_id', None)
-    idcard_img_url = request.POST.get('idcard_img_url', None)
-    if author_id and idcard_img_url:
+    idcard_img = request.FILES.get('idcard_img', None)
+    if author_id and idcard_img:
         try:
             author = Author.objects.get(id=author_id)
         except Author.DoesNotExist:
             # 不存在则创建
             author = Author.objects.create(id=author_id)
-        # TODO 使用七牛云对象存储上传图片
-        # 创建认证消息
-        certification = Certification.objects.create(user=user, author=author, idcard_img_url=idcard_img_url)
-        certification.save()
+        # 先把文件存储到本地
+        file_path = save_file(idcard_img)
+        # 使用七牛云对象存储上传图片
+        key = user.email + '_idcard.png'
+        ret = upload_file(key, file_path)
+        if ret:
+            # 删除本地存储的文件
+            os.remove(file_path)
+            # 创建认证消息
+            certification = Certification.objects.create(user=user, author=author, idcard_img_url=key)
+            certification.save()
+            return response(SUCCESS, '申请认证成功！')
+        else:
+            os.remove(file_path)
+            return response(FILE_ERROR, '上传身份证失败！', error=True)
     else:
         return response(PARAMS_ERROR, '字段不可为空', error=True)
-    return response(SUCCESS, '申请认证成功！')
 
 
 @allowed_methods(['GET'])
@@ -642,3 +651,20 @@ def check_author_follow(request):
     data = dict()
     data['followed'] = user.follows.filter(id=author_id).exists()
     return response(SUCCESS, '检查用户是否关注学者成功！', data=data)
+
+
+@allowed_methods(['POST'])
+@login_required
+def relieve_certification(request):
+    """
+    解除认证
+    :param request: token
+    :return: [code, msg, data, error]
+    """
+    user = request.user
+    user: User
+    if not user.scholar_identity:
+        return response(PARAMS_ERROR, '用户未认证！', error=True)
+    user.scholar_identity = None
+    user.save()
+    return response(SUCCESS, '解除认证成功！')
