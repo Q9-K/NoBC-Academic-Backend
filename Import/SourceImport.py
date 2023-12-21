@@ -4,7 +4,7 @@ import time
 import gzip
 from tqdm import tqdm
 from datetime import datetime
-from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Double, Date
+from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Object, Double, Date
 from elasticsearch.helpers import parallel_bulk
 from elasticsearch import Elasticsearch
 from path import data_path
@@ -12,6 +12,7 @@ from path import data_path
 connections.create_connection(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
 client = Elasticsearch(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
 INDEX_NAME = 'source'
+
 
 class SourceDocument(Document):
     id = Keyword()
@@ -23,23 +24,24 @@ class SourceDocument(Document):
             "cited_by_count": Integer(),
         }
     )
-    display_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
+    # display_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
+    display_name = {
+        "type": "text",  # 使用 text 类型进行分词
+        "fields": {
+            "keyword": {
+                "type": "keyword"  # 使用 keyword 类型存储原始值，不分词
+            }
+        }
+    },
     homepage_url = Keyword(index=False)
     host_organization = Keyword(index=False)
     host_organization_lineage = Keyword(index=False)
     host_organization_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
-    summary_stats = Nested(
+    summary_stats = Object(
         properties={
             "2yr_mean_citedness": Double(),
             "h_index": Integer(),
             "i10_index": Integer(),
-        }
-    )
-    # 添加字段
-    societies = Nested(
-        properties={
-            "url": Keyword(),
-            "organization": Text(),
         }
     )
     type = Keyword()
