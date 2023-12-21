@@ -41,7 +41,8 @@ class ScholarDocument(Document):
         properties={
             "id": Keyword(),
             "ror": Keyword(index=False),
-            "display_name": Text(),
+            # "display_name": Text(),
+            "display_name": Keyword(),
             "country_code": Keyword(),
             "type": Keyword(index=False)
         }

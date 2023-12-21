@@ -87,9 +87,9 @@ def get_author_by_name(request):
                 }
             },
             "aggs": {
-                "agg_term_name": {
+                "agg_term_institution": {
                     "terms": {
-                        "field": "display_name.keyword",
+                        "field": "last_known_institution.display_name.keyword",
                     }
                 }
             }
@@ -180,10 +180,10 @@ def get_works(request):
     })
 
 
-# 热门作者
+# 查找指定领域的权威作者
 @allowed_methods(['GET'])
 def get_hot_authors(request):
-    # 从mysql里面搜索，按views排序
+
     authors = Author.objects.order_by('-views')[:10]
     res = []
     for author in authors:
@@ -223,7 +223,7 @@ def get_co_author_list(request):
 
                 tmp_author = es_get_author_by_id(author_ship['author']['id'])
                 tmp_author_source = tmp_author['hits']['hits'][0]['_source']
-                tmp_dic['avatar'] = ''
+                tmp_dic['avatar'] = tmp_author_source['avatar']
                 tmp_dic['paperCount'] = tmp_author_source['works_count']
                 tmp_dic['ScholarId'] = author_ship['author']['id']
                 res.append(tmp_dic)
@@ -257,8 +257,7 @@ def get_scholar_metrics(request):
     res = {
         'Papers': source['works_count'],
         'Citation': source['cited_by_count'],
-        'H-Index': source['summary_stats']['h_index'],
-        'G-Index': source['summary_stats']['g_index'],
+        'H-Index': source['summary_stats']['h_index']
     }
 
     return JsonResponse({
