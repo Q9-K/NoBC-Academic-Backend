@@ -47,6 +47,16 @@ class ScholarDocument(Document):
             "type": Keyword(index=False)
         }
     )
+    x_concepts = Nested(
+        properties={
+            "id": Keyword(),
+            "wikidata": Keyword(index=False),
+            "display_name": Keyword(),
+            "level": Integer(),
+            "score": Float()
+        }
+    )
+
     # 额外维护的信息
     user_id = Keyword()
 
@@ -93,7 +103,7 @@ def generate_actions(file_name):
         for line in lines:
             data = json.loads(line)
             properties_to_extract = ["id", "cited_by_count", "counts_by_year", "display_name",
-                                     "works_count", "summary_stats", "last_known_institution"]
+                                     "works_count", "summary_stats", "last_known_institution", "x_concepts"]
             data = {key: data[key] for key in properties_to_extract}
 
             properties_to_manual_set = ["user_id", "education_background", "personal_summary", "work_experience",
