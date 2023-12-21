@@ -78,7 +78,7 @@ class Matrix2D(list):
         if not pivot:
             return matR
         return kls.translate(-pivot[0], -pivot[1]) * matR * \
-               kls.translate(*pivot)
+            kls.translate(*pivot)
 
 
 class IdenticonRendererBase(object):
@@ -208,21 +208,14 @@ class DonRenderer(IdenticonRendererBase):
         foreColor = (red << 3, green << 3, blue << 3)
 
         return (middleType, middleInvert, 0), \
-               (cornerType, cornerInvert, cornerTurn), \
-               (sideType, sideInvert, sideTurn), \
-               foreColor, ImageColor.getrgb('white')
+            (cornerType, cornerInvert, cornerTurn), \
+            (sideType, sideInvert, sideTurn), \
+            foreColor, ImageColor.getrgb('white')
 
 
-def render_identicon(name,renderer=None):
-    size=100
+def render_identicon(name, renderer=None):
+    size = 100
     code = random.randint(1, 100000000000)
     if not renderer:
         renderer = DonRenderer
-    renderer(code).render(size).save(name+'.png')
-
-
-if __name__ == '__main__':
-
-    img = render_identicon('man')
-
-
+    renderer(code).render(size).save(fp='tempFile/' + name)

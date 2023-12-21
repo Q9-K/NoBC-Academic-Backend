@@ -25,6 +25,7 @@ class User(models.Model):
     organization = models.CharField(max_length=20, default='暂无')
     subject = models.CharField(max_length=20, default='暂无')
     interested_concepts = models.ManyToManyField(to='user.InterestedConcept', related_name='interested_user')
+    avatar_key = models.CharField(max_length=50, default='')
 
     def activate(self):
         """
