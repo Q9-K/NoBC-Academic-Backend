@@ -1,17 +1,17 @@
 import json
 import os
 import gzip
+import random
 from datetime import datetime
-from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Date, Float, Boolean, Completion, \
-    Object
+from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Date, Completion, Object
 from elasticsearch.helpers import parallel_bulk
 from elasticsearch import Elasticsearch
 from path import data_path
 from collections import deque
 
-connections.create_connection(hosts=['localhost'], timeout=120, http_auth=('elastic', 'buaaNOBC2121'))
-client = Elasticsearch(hosts=['localhost'], timeout=120, http_auth=('elastic', 'buaaNOBC2121'))
-INDEX_NAME = 'work'
+connections.create_connection(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
+client = Elasticsearch(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
+INDEX_NAME = 'work_optimized'
 
 
 class WorkDocument(Document):
@@ -28,28 +28,20 @@ class WorkDocument(Document):
                         fields={
                             'keyword': Keyword()
                         }),
-                    "orcid": Keyword()
                 }
             ),
-            "author_position": Keyword(index=False),
-            "countries": Keyword(index=False),
             "institutions": Nested(
                 properties={
-                    "country_code": Keyword(),
                     "display_name": Text(
                         fields={
                             'keyword': Keyword()
                         }),
                     "id": Keyword(),
-                    "lineage": Text(),
-                    "ror": Text(),
                     "type": Keyword(),
                 }
             )
         }
     )
-    corresponding_author_ids = Keyword()
-    corresponding_institution_ids = Keyword()
     cited_by_count = Integer()
     concepts = Nested(
         properties={
@@ -61,7 +53,6 @@ class WorkDocument(Document):
                 }
             ),
             "level": Integer(),
-            "score": Float()
         }
     )
     counts_by_year = Nested(
@@ -79,7 +70,6 @@ class WorkDocument(Document):
     abstract = Text(analyzer='ik_max_word', search_analyzer='ik_smart')
     locations = Nested(
         properties={
-            "is_oa": Boolean(),
             "landing_page_url": Keyword(index=False),
             "pdf_url": Keyword(index=False),
             "source": Nested(
@@ -90,14 +80,11 @@ class WorkDocument(Document):
                             'keyword': Keyword()
                         }
                     ),
-                    "issn_l": Keyword(index=False),
-                    "issn": Keyword(index=False),
                     "host_organization": Keyword(index=False),
+                    "host_organization_name": Keyword(index=False),
                     "type": Keyword(index=False),
                 }
             ),
-            "license": Keyword(index=False),
-            "version": Keyword(index=False),
         }
     )
     visit_count = Integer()
@@ -105,14 +92,14 @@ class WorkDocument(Document):
     class Index:
         name = INDEX_NAME
         settings = {
-            'number_of_shards': 30,
+            'number_of_shards': 16,
             'number_of_replicas': 0,
             'index': {
-                'mapping.nested_objects.limit': 100000,
-                'refresh_interval': -1,
+                # 'mapping.nested_objects.limit': 100000,
+                'refresh_interval': '30s',
                 'translog': {
                     'durability': 'async',
-                    'sync_interval': '60s',
+                    'sync_interval': '30s',
                     'flush_threshold_size': '1024mb'
                 }
             },
@@ -136,20 +123,93 @@ def generate_actions(file_name):
                                      "referenced_works",
                                      "related_works",
                                      "locations",
-                                     "corresponding_author_ids",
-                                     "corresponding_institution_ids",
+                                     # "corresponding_author_ids",
+                                     # "corresponding_institution_ids",
                                      ]
             abstract = data.get('abstract_inverted_index')
             data = {key: data[key] for key in properties_to_extract}
-            data['visit_count'] = 0
+            # 提取id
+            data['id'] = data['id'][len('https://openalex.org/'):]
+            # 提取authorships
+            authorships = []
+            for authorship in data['authorships'][0:10]:
+                properties_to_extract = ["author", "institutions", "is_corresponding"]
+                authorship = {key: authorship[key] for key in properties_to_extract}
+                authorship["author"] = {
+                    "id": authorship["author"]["id"][len('https://openalex.org/'):] if authorship["author"].get(
+                        'id') else None,
+                    "display_name": authorship["author"]["display_name"],
+                }
+                institutions = []
+                for institution in authorship["institutions"]:
+                    institution = {
+                        "id": institution["id"][len('https://openalex.org/'):],
+                        "display_name": institution["display_name"],
+                        "type": institution["type"],
+                    }
+                    institutions.append(institution)
+                authorship["institutions"] = institutions
+                authorships.append(authorship)
+            data["authorships"] = authorships
+            # 处理concepts
+            concepts = []
+            for concept in data["concepts"][0:10]:
+                concept = {
+                    "id": concept["id"][len('https://openalex.org/'):] if concept.get('id') else None,
+                    "wikidata": concept["wikidata"],
+                    "display_name": concept["display_name"],
+                    "level": concept["level"],
+                }
+                concepts.append(concept)
+            data["concepts"] = concepts
+            # 设置pdf_url
+            pdf_url = None
+            for location in data["locations"]:
+                if location.get("pdf_url"):
+                    pdf_url = location.get("pdf_url")
+                    break
+            data["pdf_url"] = pdf_url
+            # 处理locations
+            locations = []
+            for location in data["locations"][0:10]:
+                location = {
+                    "source": location["source"],
+                    "landing_page_url": location["landing_page_url"],
+                }
+                source = location["source"]
+                if source:
+                    source = {
+                        "id": source["id"][len('https://openalex.org/'):] if source.get('id') else None,
+                        "display_name": source["display_name"],
+                        "host_organization": source["host_organization"][len('https://openalex.org/'):]
+                        if source.get('host_organization') else None,
+                        "host_organization_name": source["host_organization_name"],
+                        "type": source["type"],
+                    }
+                    location["source"] = source
+                locations.append(location)
+            data['locations'] = locations
+            # 设置vist_count
+            data['visit_count'] = random.randint(50, 10000)
             data['abstract'] = None
             if abstract:
                 positions = [(word, pos) for word, pos_list in abstract.items() for pos in pos_list]
                 positions.sort(key=lambda x: x[1])
                 data['abstract'] = ' '.join([word for word, _ in positions])
+
+            # 处理related_works和referenced_works
+            related_works = []
+            for related_work in data['related_works'][0:10]:
+                related_works.append(related_work[len('https://openalex.org/'):])
+            data['related_works'] = related_works
+            referenced_works = []
+            for referenced_work in data['referenced_works'][0:10]:
+                referenced_works.append(referenced_work[len('https://openalex.org/'):])
+            data['referenced_works'] = referenced_works
             document = {
                 '_index': INDEX_NAME,
-                '_source': data
+                '_source': data,
+                '_id': data['id'],
             }
             yield document
 
@@ -157,15 +217,31 @@ def generate_actions(file_name):
 def run(file_name):
     actions = generate_actions(file_name)
     deque(parallel_bulk(client=client, actions=actions,
-                        thread_count=8, queue_size=15,
-                        chunk_size=5000, request_timeout=120
+                        thread_count=8, queue_size=20,
+                        chunk_size=1000, request_timeout=60
                         ), maxlen=0)
+    save_imported_files(file_name)
 
 
 def process_files(folder):
+    imported_files = get_imported_files()
     files = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
     for file in files:
-        run(os.path.join(folder, file))
+        if file not in imported_files:
+            run(os.path.join(folder, file))
+
+
+def save_imported_files(file_name):
+    with open('imported_files.txt', 'a') as file:
+        file.write(file_name + '\n')
+
+
+def get_imported_files():
+    if not os.path.exists('imported_files.txt'):
+        return set()
+
+    with open('imported_files.txt', 'r') as file:
+        return set(line.strip() for line in file)
 
 
 if __name__ == "__main__":
@@ -176,7 +252,7 @@ if __name__ == "__main__":
     print("Start insert to ElasticSearch at {}".format(start_time))
     root_path = data_path + 'works'
     # 获取所有子文件夹
-    sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
+    sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))][0:5]
 
     for sub_folder in sub_folders:
         folder_path = os.path.join(root_path, sub_folder)

@@ -36,7 +36,7 @@ def pagination(search, request) -> Search:
     return ret
 
 
-def get_return_data(search: Search, name: str, key_list: [], deeper_name_list=None) -> dict:
+def get_return_data(search: Search, data_name: str, key_list: [], deeper_name_list=None) -> dict:
     """
     获取返回数据
     :param deeper_name_list: 深层嵌套提取
@@ -78,7 +78,7 @@ def get_return_data(search: Search, name: str, key_list: [], deeper_name_list=No
         data.append(dic)
     return_data = dict()
     return_data['total'] = search.count()
-    return_data[name] = data
+    return_data[data_name] = data
     return return_data
 
 
@@ -117,9 +117,9 @@ def getInstitutionDetail(request):
         # 查询
         search = Search(using=ES_CONN, index='institution').query('term', id=institution_id)
         key_list = ['display_name', 'type', 'chinese_display_name', 'image_url', 'homepage_url',
-                    'lineage', 'counts_by_year']
+                    'lineage', 'counts_by_year', 'repositories']
         deeper_name_map = {'associated_institutions': ['id', 'display_name'],
-                           'geo': ['country_code']}
+                           'geo': ['country_code', 'city']}
         ret = get_return_data(search, 'institution', key_list, deeper_name_map)
         if len(ret) == 0:
             return response(ELASTIC_ERROR, '未找到该机构', error=True)

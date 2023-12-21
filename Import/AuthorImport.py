@@ -2,13 +2,14 @@ import os
 import json
 import gzip
 from datetime import datetime
-from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested
+from elasticsearch_dsl import connections, Document, Integer, Keyword, Text, Nested, Object, Float
 from elasticsearch.helpers import parallel_bulk
 from elasticsearch import Elasticsearch
 from path import data_path
 
 connections.create_connection(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
 client = Elasticsearch(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
+
 
 class ScholarDocument(Document):
     id = Keyword()
@@ -22,17 +23,51 @@ class ScholarDocument(Document):
     )
     display_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
     works_count = Integer()
-    last_known_institution = Nested(
+    summary_stats = Object(
+        properties={
+            "2yr_mean_citedness": Float(),
+            "h_index": Integer(),
+            "i10_index": Integer(),
+            "oa_percent": Float(),
+            "works_count": Integer(),
+            "cited_by_count": Integer(),
+            "2yr_works_count": Integer(),
+            "2yr_cited_by_count": Integer(),
+            "2yr_i10_index": Integer(),
+            "2yr_h_index": Integer()
+        }
+    )
+    last_known_institution = Object(
         properties={
             "id": Keyword(),
             "ror": Keyword(index=False),
             "display_name": Text(),
             "country_code": Keyword(),
-            "type": Keyword(index=False),
-            "lineage": Keyword(index=False)
+            "type": Keyword(index=False)
         }
     )
+    # 额外维护的信息
     user_id = Keyword()
+
+    education_background = Text()
+    personal_summary = Text()
+    work_experience = Text()
+
+    avatar = Keyword(index=False)
+    chinese_name = Keyword()
+    title = Keyword(index=False)
+    phone = Keyword(index=False)
+    fax = Keyword(index=False)
+    email = Keyword(index=False)
+    address = Keyword(index=False)
+    personal_website = Keyword(index=False)
+    official_website = Keyword(index=False)
+    google = Keyword(index=False)
+    twitter = Keyword(index=False)
+    facebook = Keyword(index=False)
+    youtube = Keyword(index=False)
+    gender = Keyword(index=False)
+    language = Keyword(index=False)
 
     class Index:
         name = 'author'
@@ -57,9 +92,17 @@ def generate_actions(file_name):
         for line in lines:
             data = json.loads(line)
             properties_to_extract = ["id", "cited_by_count", "counts_by_year", "display_name",
-                                     "works_count", "last_known_institution"]
+                                     "works_count", "summary_stats", "last_known_institution"]
             data = {key: data[key] for key in properties_to_extract}
-            data['user_id'] = None
+
+            properties_to_manual_set = ["user_id", "education_background", "personal_summary", "work_experience",
+                                        "avatar", "chinese_name", "title", "phone", "fax", "email", "address",
+                                        "personal_website", "official_website", "google", "twitter", "facebook",
+                                        "youtube", "gender", "language"]
+
+            for key in properties_to_manual_set:
+                data[key] = None
+
             document = {
                 '_index': 'author',
                 '_op_type': 'index',
@@ -85,7 +128,7 @@ if __name__ == "__main__":
     ScholarDocument.init()
     start_time = datetime.now()
     print("Start insert to ElasticSearch at {}".format(datetime.now()))
-    root_path = data_path+'authors'
+    root_path = data_path + 'authors'
     # 获取所有子文件夹
     sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
     for sub_folder in sub_folders:

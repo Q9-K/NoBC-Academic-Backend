@@ -18,4 +18,6 @@ urlpatterns = [
     path('remove_focus_concept/', remove_focus_concept),
     path('get_focus_concepts/', get_focus_concepts),
     path('clear_histories/', clear_histories),
+    path('change_user_info/', change_user_info),
+    path('check_concept_focus/', check_concept_focus),
 ]

@@ -6,8 +6,12 @@ from django.http import JsonResponse
 from elasticsearch import Elasticsearch
 from elasticsearch_dsl import Search, Q
 from elasticsearch_dsl.connections import connections
+
+from user.models import User
 from NoBC.status_code import *
-from utils.view_decorator import allowed_methods
+from utils.generate_image import generate_image
+from utils.view_decorator import allowed_methods, login_required
+from utils.translate import translate
 
 # Create your views here.
 
@@ -16,7 +20,6 @@ client = connections.get_connection()
 
 @allowed_methods(['GET'])
 def get_level_0(request):
-    language = request.GET.get('language', 0)
     # 创建搜索对象
     try:
         s = Search(using=client, index="concept")
@@ -24,10 +27,8 @@ def get_level_0(request):
         return JsonResponse({'code': 10005, 'msg': '创建搜索对象失败'})
     # 添加过滤条件
     s = s.filter("term", level=0)
-    if (language):
-        s = s.source(['id', 'chinese_display_name'])
-    else:
-        s = s.source(['id', 'display_name'])
+
+    s = s.source(['id', 'display_name', 'chinese_display_name'])
     # 执行搜索
     response = s.execute()
 
@@ -42,64 +43,35 @@ def get_level_0(request):
     return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
 
 
+@allowed_methods(['GET'])
 def get_subdomains(request):
-    language = request.GET.get('language', 0)
     id = request.GET.get('id')
     # 构建查询
-    if language:
-        query = {
-            "query": {
-                "nested": {
-                    "path": "ancestors",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"ancestors.id": id}},
 
-                            ]
-                        }
-                    }
-                }
-            },
-            "sort": [
-                {
-                    "summary_stats.h_index": {
-                        "order": "desc",
-                        "nested": {
-                            "path": "summary_stats"
-                        }
-                    }
-                }
-            ],
-            "_source": ["id", "chinese_display_name"]
-        }
-    else:
-        query = {
-            "query": {
-                "nested": {
-                    "path": "ancestors",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"ancestors.id": id}},
+    query = {
+        "query": {
+            "nested": {
+                "path": "ancestors",
+                "query": {
+                    "bool": {
+                        "must": [
+                            {"term": {"ancestors.id": id}},
 
-                            ]
-                        }
+                        ]
                     }
                 }
-            },
-            "sort": [
-                {
-                    "summary_stats.h_index": {
-                        "order": "desc",
-                        "nested": {
-                            "path": "summary_stats"
-                        }
-                    }
+            }
+        },
+        "sort": [
+            {
+                "summary_stats.h_index": {
+                    "order": "desc"
                 }
-            ],
-            "_source": ["id", "display_name"]
-        }
+            }
+        ],
+        "_source": ["id", "display_name", "chinese_display_name"]
+    }
+
     response = client.search(index="concept", body=query)
 
     # 提取结果
@@ -110,11 +82,10 @@ def get_subdomains(request):
     return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
 
 
+@allowed_methods(['GET'])
 def search_concept_by_keyword(request):
+    language = request.GET.get('language')
     keyword = request.GET.get('keyword')
-    print(keyword)
-    language = request.GET.get('language', 0)
-    query = {}
     if language == '0':
         query = {
             "query": {
@@ -125,14 +96,11 @@ def search_concept_by_keyword(request):
                     }
                 }
             },
-            "_source": ["id", "display_name", "summary_stats.h_index"],
+            "_source": ["id", "display_name", "chinese_display_name", "summary_stats.h_index"],
             "sort": [
                 {
                     "summary_stats.h_index": {
-                        "order": "desc",
-                        "nested": {
-                            "path": "summary_stats"
-                        }
+                        "order": "desc"
                     }
                 }
             ],
@@ -148,14 +116,11 @@ def search_concept_by_keyword(request):
                     }
                 }
             },
-            "_source": ["id", "chinese_display_name", "summary_stats.h_index"],
+            "_source": ["id", "display_name", "chinese_display_name", "summary_stats.h_index"],
             "sort": [
                 {
                     "summary_stats.h_index": {
-                        "order": "desc",
-                        "nested": {
-                            "path": "summary_stats"
-                        }
+                        "order": "desc"
                     }
                 }
             ],
@@ -163,95 +128,229 @@ def search_concept_by_keyword(request):
         }
 
     results = []
+    to_translate = []
+    ids_to_update = []  # 用于存储需要更新的文档的ID
     response = client.search(index="concept", body=query)
+
+    # 收集需要翻译的数据
     for hit in response['hits']['hits']:
         source_data = hit['_source']
         results.append(source_data)
 
+        if not source_data.get('chinese_display_name'):
+            to_translate.append(source_data['display_name'])
+            ids_to_update.append(hit['_id'])
+
+    # 进行翻译
+    if len(to_translate) > 0:
+        translated = translate("//".join(to_translate))  # 假设 translate 函数可以处理这个字符串
+        translated_names = translated.split("//")
+
+        # 更新 Elasticsearch 并更新返回数据
+        for i, document_id in enumerate(ids_to_update):
+            translated_name = translated_names[i] if i < len(translated_names) else None
+            if translated_name:
+                update_body = {"doc": {"chinese_display_name": translated_name}}
+                client.update(index="concept", id=document_id, body=update_body)
+                # 同时更新返回的结果集
+                for result in results:
+                    if result['id'] == document_id:  # 假设 'id' 是文档的唯一标识符
+                        result['chinese_display_name'] = translated_name
+
     return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
 
 
+@allowed_methods(['GET'])
 def get_concept_by_id(request):
     id = request.GET.get('id')
-    language = request.GET.get('language', 0)
-    query = {}
-    if language == '0':
-        query = {
-            "query": {
-                "term": {
-                    "id": id
-                }
-            },
-            "_source": ["id", "display_name", "level", "description", "summary_stats", "works_count", "cited_by_count",
-                        "related_concepts", "ancestors", "image_url", "counts_by_year"],
-            "size": 1
-        }
-    else:
-        query = {
-            "query": {
-                "term": {
-                    "id": id
-                }
-            },
-            "_source": ["id", "chinese_display_name", "level", "chinese_description", "summary_stats", "works_count",
-                        "cited_by_count", "related_concepts", "ancestors", "image_url", "counts_by_year"],
-            "size": 1
-        }
+    query = {
+        "query": {
+            "term": {
+                "id": id
+            }
+        },
+        "_source": ["id", "display_name", "chinese_display_name", "level", "description", "chinese_description",
+                    "summary_stats", "works_count", "cited_by_count",
+                    "related_concepts", "ancestors", "image_url", "counts_by_year"],
+        "size": 1
+    }
 
     results = []
+    to_translate = []
+    ids_to_update = []  # 仅存储需要更新的文档的 document_id
     response = client.search(index="concept", body=query)
+
+    # 收集需要翻译的数据
     for hit in response['hits']['hits']:
         source_data = hit['_source']
+        if source_data['chinese_display_name'] == '':
+            to_translate.append(source_data['display_name'])
+            ids_to_update.append(hit['_id'])  # 仅存储缺少字段的文档的 document_id
+
+        # if not source_data['image_url']:
+
+        # todo 对象存储
+
+        # if source_data['chinese_display_name'] == '':
+        #     source_data['image_url'] = generate_image(source_data['display_name'])
+        # else:
+        #     source_data['image_url'] = generate_image(source_data['chinese_display_name'])
+
+        # 翻译 ancestors 和 related_concepts 中的 chinese_display_name
+
+        for field in ['ancestors', 'related_concepts']:
+            if field in source_data:
+                for item in source_data[field]:
+                    if 'chinese_display_name' not in item or item['chinese_display_name'] == '':
+                        to_translate.append(item['display_name'])
+
         results.append(source_data)
+
+    # 进行翻译
+    if to_translate:
+        translated_string = translate("//".join(to_translate))
+        translated_parts = translated_string.split("//")
+
+        # 分配翻译结果并更新 Elasticsearch
+        for i, document_id in enumerate(ids_to_update):
+            if i < len(translated_parts):
+                update_body = {"doc": {"chinese_display_name": translated_parts[i]}}
+                client.update(index="concept", id=document_id, body=update_body)
+
+                # 同时更新返回的结果集
+                for result in results:
+                    if result['id'] == document_id:  # 假设 'id' 是文档的唯一标识符
+                        result['chinese_display_name'] = translated_parts[i]
 
     return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
 
 
+@allowed_methods(['GET'])
 def get_hot_concepts(request):
-    language = request.GET.get('language', 0)
-    query = {}
-    if language:
-        query = {
-            "size": 30,
-            "query": {
-                "match_all": {}
-            },
-            "sort": {
-                "_script": {
-                    "type": "number",
-                    "script": {
-                        "lang": "painless",
-                        "source": "doc['level'].value * 10 + doc['summary_stats.h_index'].value"
-                    },
-                    "order": "desc"
-                }
-            },
-            "_source": ["id", "chinese_display_name", "summary_stats.h_index"]
-        }
-    else:
-        query = {
-            "query": {
-                "bool": {
-                    "should": [
-                        {
-                            "bool": {
-                                "must_not": {
-                                    "exists": {
-                                        "field": "summary_stats.h_index"
-                                    }
-                                }
-                            }
-                        }
-                    ],
-                    "minimum_should_match": 1
-                }
+    query = {
+        "size": 30,
+        "query": {
+            "match_all": {}
+        },
+        "sort": {
+            "_script": {
+                "type": "number",
+                "script": {
+                    "lang": "painless",
+                    "source": "doc['summary_stats.h_index'].value * (4 - Math.abs(3 - doc['level'].value))"
+                },
+                "order": "desc"
             }
-        }
+        },
+        "_source": ["id", "display_name", "chinese_display_name", "level", "summary_stats.h_index"]
+    }
     response = client.search(index='concept', body=query)
 
     results = []
+    to_translate = []
+    ids_to_update = []  # 仅存储需要更新的文档的 document_id
     for hit in response['hits']['hits']:
         source_data = hit['_source']
+
+        if source_data['chinese_display_name'] == '':
+            to_translate.append(source_data['display_name'])
+            ids_to_update.append(hit['_id'])  # 仅存储缺少字段的文档的 document_id
+
         results.append(source_data)
 
+    # 进行翻译
+    if to_translate:
+        translated_string = translate("//".join(to_translate))
+        translated_parts = translated_string.split("//")
+
+        # 分配翻译结果并更新 Elasticsearch
+        for i, document_id in enumerate(ids_to_update):
+            if i < len(translated_parts):
+                update_body = {"doc": {"chinese_display_name": translated_parts[i]}}
+                client.update(index="concept", id=document_id, body=update_body)
+
+                # 同时更新返回的结果集
+                for result in results:
+                    if result['id'] == document_id:
+                        result['chinese_display_name'] = translated_parts[i]
+
+
     return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
+
+
+@allowed_methods(['GET'])
+def search_works_by_concept(request):
+    id = request.GET.get('id')
+
+    query = {
+        "query": {
+            "nested": {
+                "path": "concepts",
+                "query": {
+                    "bool": {
+                        "must": [
+                            {"match": {"concepts.id": id}}
+                        ]
+                    }
+                }
+            }
+        }
+    }
+
+    # 执行搜索
+    response = client.search(index="work", body=query)
+
+    # 处理结果
+    results = [hit["_source"] for hit in response['hits']['hits']]
+    return JsonResponse(results, safe=False)
+
+
+def search_works_with_empty_concept_id(request):
+    # Elasticsearch 查询，查找 concepts.id 字段为空的文档
+    query = {
+        "query": {
+            "bool": {
+                "must_not": {
+                    "exists": {
+                        "field": "concepts.id"
+                    }
+                }
+            }
+        }
+    }
+
+    # 执行搜索
+    response = client.search(index="work", body=query)
+    # 处理结果
+    results = [hit["_source"] for hit in response['hits']['hits']]
+    return JsonResponse(results, safe=False)
+
+
+@allowed_methods(['GET'])
+@login_required
+def get_works_with_followed_concepts(request):
+    user = request.user
+    # User.objects.filter(id=user.id
+
+    # 构建查询
+    query = {
+        "query": {
+            "nested": {
+                "path": "concepts",
+                "query": {
+                    "bool": {
+                        "must": [
+                            {"terms": {"concepts.id": followed_concepts}}
+                        ]
+                    }
+                }
+            }
+        }
+    }
+
+    # 执行搜索
+    response = client.search(index="work", body=query)
+
+    # 处理结果
+    results = [hit["_source"] for hit in response['hits']['hits']]
+    return JsonResponse(results, safe=False)

@@ -23,7 +23,7 @@ class Message(models.Model):
 class Certification(models.Model):
     user = models.ForeignKey(to='user.User', related_name='certification', on_delete=models.CASCADE)
     # 学者外键
-    scholar = models.ForeignKey(to='author.Author', related_name='certification', on_delete=models.CASCADE)
+    author = models.ForeignKey(to='author.Author', related_name='certification', on_delete=models.CASCADE)
     # 状态可选项
     PENDING = 'PD'
     PASSED = 'PS'
@@ -42,7 +42,7 @@ class Certification(models.Model):
         return {
             'id': self.id,
             'user': self.user.name,
-            'author': self.scholar,
+            'author': self.author,
             'status': self.get_status_display(),
             'result_msg': self.result_msg,
             'idcard_img_url': self.idcard_img_url,
@@ -52,7 +52,7 @@ class Certification(models.Model):
 
 class Complaint(models.Model):
     user = models.ForeignKey(to='user.User', related_name='complaint', on_delete=models.CASCADE)
-    to_scholar = models.ForeignKey(to='author.Author', related_name='complaint', on_delete=models.CASCADE)
+    to_author = models.ForeignKey(to='author.Author', related_name='complaint', on_delete=models.CASCADE)
     # 状态可选项
     PENDING = 'PD'
     PASSED = 'PS'
@@ -71,7 +71,7 @@ class Complaint(models.Model):
         return {
             'id': self.id,
             'user': self.user.name,
-            'to_scholar': self.to_scholar,
+            'to_scholar': self.to_author,
             'status': self.get_status_display(),
             'result_msg': self.result_msg,
             'complaint_content': self.complaint_content,

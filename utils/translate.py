@@ -10,7 +10,7 @@ import random
 import json
 from hashlib import md5
 
-def trans(query):
+def translate(query):
     print(query)
     # Set your own appid/appkey.
     appid = '20231206001902509'
@@ -44,5 +44,3 @@ def trans(query):
 
     return result
 
-if __name__ == '__main__':
-    trans('hello')

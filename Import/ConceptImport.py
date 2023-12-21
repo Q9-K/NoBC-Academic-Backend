@@ -38,6 +38,7 @@ class ConceptDocument(Document):
         properties={
             "id": Keyword(),
             "display_name": Keyword(),
+            "chinese_display_name": Keyword(),
             "level": Integer(),
             "score": Double(),
         }
@@ -46,6 +47,7 @@ class ConceptDocument(Document):
         properties={
             "id": Keyword(),
             "display_name": Keyword(),
+            "chinese_display_name": Keyword(),
             "level": Integer(),
             "score": Double(),
         }
@@ -86,6 +88,12 @@ def run(file_name):
         start_time = time.perf_counter()
         for line in file:
             data = json.loads(line)
+            for ancestor in data.get('ancestors', []):
+                ancestor['chinese_display_name'] = ''
+
+             # 为 related_concepts 中的每个元素添加空的 chinese_display_name
+            for related_concept in data.get('related_concepts', []):
+                related_concept['chinese_display_name'] = ''
             international = data.get('international', {})
             data['chinese_display_name'] = ''
             data['description'] = ''
@@ -95,9 +103,7 @@ def run(file_name):
                 description = international.get('description')
 
                 if display_name:
-                    data['chinese_display_name'] = display_name.get('zh-cn')
-                    if not data['chinese_display_name']:
-                        data['chinese_display_name'] = display_name.get('zh', '')
+                    data['chinese_display_name'] = display_name.get('zh-cn','')
                 if description:
                     data['description'] = description.get('en', '')
                     data['chinese_description'] = description.get('zh-cn')
@@ -105,7 +111,6 @@ def run(file_name):
                         data['chinese_description'] = description.get('zh')
                         if not data['chinese_description']:
                             data['chinese_description'] = description.get('zh-hans', '')
-
             properties_to_extract = ["id", "cited_by_count", "counts_by_year", "summary_stats", "level", "display_name",
                                      "works_count", "image_url", "ancestors",
                                      "related_concepts", "counts_by_year", "works_api_url", "chinese_display_name",

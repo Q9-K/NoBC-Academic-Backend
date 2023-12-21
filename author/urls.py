@@ -5,6 +5,7 @@ urlpatterns = [
     path('get_author_by_id/', get_author_by_id),
     path('get_works/', get_works),
     path('get_hot_authors/', get_hot_authors),
-    path('get_related_authors/', get_related_authors),
+    path('get_co_author_list/', get_co_author_list),
     path('get_scholar_metrics/', get_scholar_metrics),
+    path('post_scholar_basic_information/', post_scholar_basic_information),
 ]
