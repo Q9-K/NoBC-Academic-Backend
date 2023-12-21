@@ -20,4 +20,7 @@ urlpatterns = [
     path('clear_histories/', clear_histories),
     path('change_user_info/', change_user_info),
     path('check_concept_focus/', check_concept_focus),
+    path('upload_user_avatar/', upload_user_avatar),
+    path('get_user_avatar/', get_user_avatar),
+    path('test/', test),
 ]

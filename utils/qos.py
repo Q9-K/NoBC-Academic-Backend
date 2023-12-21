@@ -13,7 +13,7 @@ def upload_file(key: str, file_path) -> bool:
     q = Auth(ACCESS_KEY, SECRET_KEY)
     # 检查是否重名
     bucket = BucketManager(q)
-    ret, info = bucket.stat('nobc', key)
+    ret, info = bucket.stat(BUCKET_NAME, key)
     if ret:
         return False
     # 生成上传 Token，可以指定过期时间等
@@ -34,3 +34,19 @@ def get_file(key: str) -> str:
     q = Auth(ACCESS_KEY, SECRET_KEY)
     join_url = BASE_URL + key
     return q.private_download_url(join_url)
+
+
+def delete_file(key: str) -> bool:
+    """
+    删除文件
+    :param key: 文件名
+    :return: 删除成功True,否则False
+    """
+    q = Auth(ACCESS_KEY, SECRET_KEY)
+    bucket = BucketManager(q)
+    ret, info = bucket.delete(BUCKET_NAME, key)
+    if ret:
+        assert ret == {}
+        return True
+    else:
+        return False
