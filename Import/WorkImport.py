@@ -11,7 +11,7 @@ from collections import deque
 
 connections.create_connection(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
 client = Elasticsearch(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
-INDEX_NAME = 'work_optimized'
+INDEX_NAME = 'work_final'
 
 
 class WorkDocument(Document):
@@ -87,6 +87,7 @@ class WorkDocument(Document):
             ),
         }
     )
+    corresponding_institution_ids = Keyword()
     visit_count = Integer()
 
     class Index:
@@ -123,8 +124,7 @@ def generate_actions(file_name):
                                      "referenced_works",
                                      "related_works",
                                      "locations",
-                                     # "corresponding_author_ids",
-                                     # "corresponding_institution_ids",
+                                     "corresponding_institution_ids",
                                      ]
             abstract = data.get('abstract_inverted_index')
             data = {key: data[key] for key in properties_to_extract}
@@ -206,6 +206,11 @@ def generate_actions(file_name):
             for referenced_work in data['referenced_works'][0:10]:
                 referenced_works.append(referenced_work[len('https://openalex.org/'):])
             data['referenced_works'] = referenced_works
+            corresponding_institution_ids = []
+            for corresponding_institution_id in data["corresponding_institution_ids"]:
+                corresponding_institution_id = corresponding_institution_id[len('https://openalex.org/'):]
+                corresponding_institution_ids.append(corresponding_institution_id)
+            data['corresponding_institution_ids'] = corresponding_institution_ids
             document = {
                 '_index': INDEX_NAME,
                 '_source': data,
@@ -260,3 +265,4 @@ if __name__ == "__main__":
     end_time = datetime.now()
     print("Finished insert to Elasticsearch at{}".format(end_time))
     print("cost time {}".format(end_time - start_time))
+
