@@ -54,10 +54,11 @@ def save_file(file):
     # 生成文件名
     file_name = str(random.randint(100000, 999999)) + '.' + file_suffix
     # 保存文件
-    with open('tempFile/' + file_name, 'wb+') as f:
+    file_path = 'tempFile/' + file_name
+    with open(file_path, 'wb+') as f:
         for chunk in file.chunks():
             f.write(chunk)
-    return file_name
+    return file_path
 
 
 @allowed_methods(['POST'])
@@ -71,10 +72,13 @@ def upload_user_avatar(request):
         # 删除原有头像
         delete_file(user.avatar_key)
         # 上传新头像
-        ret = upload_file(user.email + '_avatar.png', 'tempFile/' + file_path)
+        ret = upload_file(user.email + '_avatar.png', file_path)
         if ret:
+            # 删除本地存储的文件
+            os.remove(file_path)
             return response(SUCCESS, '上传头像成功！')
         else:
+            os.remove(file_path)
             return response(FILE_ERROR, '上传头像失败！', error=True)
     else:
         return response(PARAMS_ERROR, '头像不能为空')
@@ -620,3 +624,21 @@ def check_concept_focus(request):
     data = dict()
     data['focus'] = user.concept_focus.filter(id=concept_id).exists()
     return response(SUCCESS, '检查用户是否关注领域成功！', data=data)
+
+
+@allowed_methods(['GET'])
+@login_required
+def check_author_follow(request):
+    """
+    检查用户是否关注学者
+    :param request: token, author_id
+    :return: [code, msg, data, error]
+    """
+    user = request.user
+    user: User
+    author_id = request.GET.get('author_id', None)
+    if not author_id:
+        return response(PARAMS_ERROR, '缺少学者id！', error=True)
+    data = dict()
+    data['followed'] = user.follows.filter(id=author_id).exists()
+    return response(SUCCESS, '检查用户是否关注学者成功！', data=data)

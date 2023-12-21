@@ -22,5 +22,6 @@ urlpatterns = [
     path('check_concept_focus/', check_concept_focus),
     path('upload_user_avatar/', upload_user_avatar),
     path('get_user_avatar/', get_user_avatar),
+    path('check_author_follow/', check_author_follow),
     path('test/', test),
 ]

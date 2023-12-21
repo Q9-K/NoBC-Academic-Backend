@@ -21,8 +21,11 @@ def upload_file(key: str, file_path) -> bool:
     # 要上传文件的本地路径
     local_file = file_path
     ret, info = put_file(token, key, local_file)
-    assert ret['key'] == key
-    assert ret['hash'] == etag(local_file)
+    if ret:
+        assert ret['key'] == key
+        assert ret['hash'] == etag(local_file)
+        return True
+    return False
 
 
 def get_file(key: str) -> str:
