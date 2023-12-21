@@ -21,6 +21,9 @@ def es_get_works(author_id, page_num=-1, page_size=-1):
     if page_num != -1 and page_size != -1:
         query_body['from'] = (page_num - 1) * page_size
         query_body['size'] = page_size
+    else:
+        query_body['from'] = 0
+        query_body['size'] = 20
     res = elasticsearch_connection.search(index='work', body=query_body)
     return res
 
