@@ -25,7 +25,7 @@ def pagination(search, request) -> Search:
     # 不需要after,使用(from, size)查询
     if last_sort is None or len(last_sort) == 0:
         _from = (page - 1) * size
-        ret = search[_from: size]
+        ret = search[_from: _from + size]
     # 使用search_after查询
     else:
         after_body = {
@@ -39,8 +39,8 @@ def pagination(search, request) -> Search:
 def get_return_data(search: Search, data_name: str, key_list: [], deeper_name_list=None) -> dict:
     """
     获取返回数据
+    :param data_name: 返回数据的名字
     :param deeper_name_list: 深层嵌套提取
-    :param name: 返回数据的名称
     :param search: Search对象
     :param key_list 需要返回的字段
     :return: 返回数据 data: {total: int, name: [{}, {}]}
@@ -62,7 +62,7 @@ def get_return_data(search: Search, data_name: str, key_list: [], deeper_name_li
                     deeper_origin_data = origin_data[key]
                     # 遍历需要获取的字段
                     # 是数组
-                    if type(deeper_origin_data) == list:
+                    if type(deeper_origin_data) is list:
                         tmp_list = []
                         for list_ele in deeper_origin_data:
                             tmp = dict()

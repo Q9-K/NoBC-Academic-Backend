@@ -6,3 +6,7 @@ PyJWT==2.8.0
 django-redis==5.3.0
 redis==5.0.0
 celery==5.3.5
+qiniu~=7.12.1
+pillow~=10.1.0
+elasticsearch~=7.17.9
+tqdm~=4.66.1

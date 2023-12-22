@@ -1,7 +1,7 @@
+import os
 import random
 import re
 from datetime import datetime
-from pprint import pprint
 
 from django.core.mail import send_mail
 from elasticsearch_dsl import connections, Search
@@ -10,15 +10,103 @@ from NoBC.status_code import *
 from author.models import Author
 from concept.models import Concept
 from config import BUAA_MAIL_USER, ELAS_HOST, ELAS_USER, ELAS_PASSWORD
-from message.models import Certification
+from message.models import Certification, Complaint
 from utils.Md5 import create_md5, create_salt
 from utils.Response import response
 from utils.Token import generate_token
+from utils.generate_avatar import render_identicon
+from utils.qos import upload_file, get_file, delete_file
 from utils.view_decorator import login_required, allowed_methods
 from work.models import Work
 from .models import User, History, Favorite
 
 ES_CONN = connections.create_connection(hosts=[ELAS_HOST], http_auth=(ELAS_USER, ELAS_PASSWORD), timeout=20)
+
+
+def init_user_avatar(user: User) -> str:
+    """
+    初始化用户头像
+    :param user: 用户对象
+    """
+    email = user.email
+    key = email + '_avatar.png'
+    render_identicon(key)
+    upload_file(key, 'tempFile/' + key)
+    user.avatar_key = key
+    user.save()
+    # 删除本地存储的文件
+    path_file = 'tempFile/' + key
+    os.remove(path_file)
+    return key
+
+
+def save_file(file):
+    """
+    保存文件
+    :param file: 文件对象
+    :return: 文件名
+    """
+    # 获取文件名
+    file_name = file.name
+    # 获取文件后缀名
+    file_suffix = file_name.split('.')[-1]
+    # 生成文件名
+    file_name = str(random.randint(100000, 999999)) + '.' + file_suffix
+    # 保存文件
+    file_path = 'tempFile/' + file_name
+    with open(file_path, 'wb+') as f:
+        for chunk in file.chunks():
+            f.write(chunk)
+    return file_path
+
+
+@allowed_methods(['POST'])
+@login_required
+def upload_user_avatar(request):
+    avatar = request.FILES.get('avatar', None)
+    if avatar:
+        file_path = save_file(avatar)
+        user = request.user
+        user: User
+        # 删除原有头像
+        delete_file(user.avatar_key)
+        # 上传新头像
+        ret = upload_file(user.email + '_avatar.png', file_path)
+        if ret:
+            # 删除本地存储的文件
+            os.remove(file_path)
+            return response(SUCCESS, '上传头像成功！')
+        else:
+            os.remove(file_path)
+            return response(FILE_ERROR, '上传头像失败！', error=True)
+    else:
+        return response(PARAMS_ERROR, '头像不能为空')
+
+
+@allowed_methods(['GET'])
+@login_required
+def get_user_avatar(request):
+    """
+    获取用户头像
+    :param request: token
+    :return: [code, msg, data, error], 其中data为头像url
+    """
+    user = request.user
+    user: User
+    avatar_key = user.avatar_key
+    if avatar_key:
+        avatar_url = get_file(avatar_key)
+        return response(SUCCESS, '获取用户头像成功！', data=avatar_url)
+    else:
+        return response(SUCCESS, '用户头像不存在！')
+
+
+@allowed_methods(['POST'])
+def test(request):
+    user = User.objects.get(email='1812643720@qq.com')
+    key = init_user_avatar(user)
+    url = get_file(key)
+    return response(data=url)
 
 
 def send_email(email) -> int:
@@ -91,6 +179,8 @@ def active_user(request):
                 user = User.objects.get(email=email, is_active=False)
                 if get_code == correct_code:
                     user.activate()
+                    # 注册成功后给用户生成默认头像
+                    init_user_avatar(user)
                     # 注册成功后直接登录,返回token
                     dic = {'email': user.email, 'name': user.name}
                     token = generate_token(dic, 60 * 60 * 24)
@@ -124,9 +214,11 @@ def login_view(request):
                 else:
                     dic = {'email': user.email, 'name': user.name}
                     token = generate_token(dic, 60 * 60 * 24)
-                    return response(SUCCESS, '登录成功！', data=token)
-            except Exception as e:
-                print(e)
+                    data = dict()
+                    data['token'] = token
+                    data['name'] = user.name
+                    return response(SUCCESS, '登录成功！', data=data)
+            except User.DoesNotExist:
                 return response(MYSQL_ERROR, '用户不存在！', error=True)
         else:
             return response(PARAMS_ERROR, '邮箱和密码不可为空', error=True)
@@ -234,10 +326,11 @@ def get_author_info(author_id: str, user: User = None):
     ret = ret[0]['_source']
     # 拼接学者信息,需要name, work_count, h_index, followed
     author_data = dict()
+    author_data['id'] = ret['id']
     author_data['name'] = ret['display_name']
     author_data['papers'] = ret['works_count']
     author_data['H_index'] = None
-    author_data['avatar'] = None
+    author_data['avatar'] = ret['avatar']
     author_data['englishAffiliation'] = None
     # 如果传入了user,则判断是否关注;否则默认为关注
     if user:
@@ -487,33 +580,6 @@ def de_authentication(request):
     return response(SUCCESS, '解除认证成功！')
 
 
-@allowed_methods(['POST'])
-@login_required
-def apply_for_certification(request):
-    """
-    申请认证
-    :param request: token, author_id
-    :return: [code, msg, data, error]
-    """
-    user = request.user
-    user: User
-    author_id = request.POST.get('author_id', None)
-    idcard_img_url = request.POST.get('idcard_img_url', None)
-    if author_id and idcard_img_url:
-        try:
-            author = Author.objects.get(id=author_id)
-        except Author.DoesNotExist:
-            # 不存在则创建
-            author = Author.objects.create(id=author_id)
-        # TODO 使用七牛云对象存储上传图片
-        # 创建认证消息
-        certification = Certification.objects.create(user=user, author=author, idcard_img_url=idcard_img_url)
-        certification.save()
-    else:
-        return response(PARAMS_ERROR, '字段不可为空', error=True)
-    return response(SUCCESS, '申请认证成功！')
-
-
 @allowed_methods(['GET'])
 @login_required
 def check_concept_focus(request):
@@ -530,3 +596,137 @@ def check_concept_focus(request):
     data = dict()
     data['focus'] = user.concept_focus.filter(id=concept_id).exists()
     return response(SUCCESS, '检查用户是否关注领域成功！', data=data)
+
+
+@allowed_methods(['GET'])
+@login_required
+def check_author_follow(request):
+    """
+    检查用户是否关注学者
+    :param request: token, author_id
+    :return: [code, msg, data, error]
+    """
+    user = request.user
+    user: User
+    author_id = request.GET.get('author_id', None)
+    if not author_id:
+        return response(PARAMS_ERROR, '缺少学者id！', error=True)
+    data = dict()
+    data['followed'] = user.follows.filter(id=author_id).exists()
+    return response(SUCCESS, '检查用户是否关注学者成功！', data=data)
+
+
+@allowed_methods(['POST'])
+@login_required
+def relieve_certification(request):
+    """
+    解除认证
+    :param request: token
+    :return: [code, msg, data, error]
+    """
+    user = request.user
+    user: User
+    if not user.scholar_identity:
+        return response(PARAMS_ERROR, '用户未认证！', error=True)
+    user.scholar_identity = None
+    user.save()
+    return response(SUCCESS, '解除认证成功！')
+
+
+@allowed_methods(['POST'])
+@login_required
+def apply_for_certification(request):
+    """
+    申请认证
+    :param request: token, author_id
+    :return: [code, msg, data, error]
+    """
+    user = request.user
+    user: User
+    # 如果已经认证,要先解除认证
+    if user.scholar_identity:
+        return response(PARAMS_ERROR, '用户已认证！', error=True)
+    author_id = request.POST.get('author_id', None)
+    idcard_img = request.FILES.get('idcard_img', None)
+    if author_id and idcard_img:
+        try:
+            author = Author.objects.get(id=author_id)
+        except Author.DoesNotExist:
+            # 不存在则创建
+            author = Author.objects.create(id=author_id)
+        # 先把文件存储到本地
+        file_path = save_file(idcard_img)
+        # 使用七牛云对象存储上传图片
+        key = user.email + '_idcard.png'
+        ret = upload_file(key, file_path)
+        if ret:
+            # 删除本地存储的文件
+            os.remove(file_path)
+            # 创建认证消息
+            certification = Certification.objects.create(user=user, author=author, idcard_img_url=key)
+            certification.save()
+            return response(SUCCESS, '申请认证成功！')
+        else:
+            os.remove(file_path)
+            return response(FILE_ERROR, '上传身份证失败！', error=True)
+    else:
+        return response(PARAMS_ERROR, '字段不可为空', error=True)
+
+
+@allowed_methods(['GET'])
+@login_required
+def get_certification_status(request):
+    """
+    获取认证状态
+    :param request: token
+    :return: [code, msg, data, error]
+    """
+    user = request.user
+    user: User
+    if not user.scholar_identity:
+        return response(SUCCESS, '用户未认证！', data={'status': '未认证', 'scholar_id': None})
+    else:
+        return response(SUCCESS, '获取认证状态成功！', data={'status': '已认证', 'scholar_id': user.scholar_identity.id})
+
+
+@allowed_methods(['POST'])
+@login_required
+def apply_for_complaint(request):
+    """
+    申请投诉
+    :param request: token, author_id
+    :return: [code, msg, data, error]
+    """
+    user = request.user
+    user: User
+    author_id = request.POST.get('author_id', None)
+    complaint_content = request.POST.get('complaint_content', None)
+    if author_id and complaint_content:
+        try:
+            author = Author.objects.get(id=author_id)
+        except Author.DoesNotExist:
+            # 不存在则创建
+            author = Author.objects.create(id=author_id)
+        if not User.objects.filter(scholar_identity=author).exists():
+            return response(PARAMS_ERROR, '学者未认证！', error=True)
+        # 创建投诉消息
+        complaint = Complaint.objects.create(user=user, to_author=author, complaint_content=complaint_content)
+        complaint.save()
+        return response(SUCCESS, '申请投诉成功！')
+    else:
+        return response(PARAMS_ERROR, '字段不可为空', error=True)
+
+
+@allowed_methods(['GET'])
+@login_required
+def get_messages_all(request):
+    """
+    获取全部站内信
+    :param request: token
+    :return: [code, msg, data, error]
+    """
+    user = request.user
+    user: User
+    messages = user.msg.all()
+    data = [message.to_string() for message in messages]
+    return response(SUCCESS, '获取全部站内信成功！', data=data)
