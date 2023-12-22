@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import gzip
 import random
@@ -8,6 +9,10 @@ from elasticsearch.helpers import parallel_bulk
 from elasticsearch import Elasticsearch
 from path import data_path
 from collections import deque
+import logging
+
+logging.basicConfig(level=logging.INFO,  # 设置日志级别
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 connections.create_connection(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
 client = Elasticsearch(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
@@ -234,6 +239,9 @@ def process_files(folder):
     for file in files:
         if file not in imported_files:
             run(os.path.join(folder, file))
+            logging.info(file + 'import success!')
+        else:
+            logging.info(file + 'has been imported!')
 
 
 def save_imported_files(file_name):
