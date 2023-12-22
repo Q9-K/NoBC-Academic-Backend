@@ -17,7 +17,7 @@ client = Elasticsearch(hosts=['localhost'], timeout=60, http_auth=('elastic', 'b
 class InstitutionDocument(Document):
     id = Keyword()
     cited_by_count = Integer()
-    display_name = Text(analyzer='my_edge_ngram_analyzer', search_analyzer='my_edge_ngram_analyzer')
+    display_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
     homepage_url = Keyword(index=False)
     image_url = Keyword(index=False)
     lineage = Keyword(index=False)
