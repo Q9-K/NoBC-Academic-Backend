@@ -321,11 +321,12 @@ def get_client_ip(request):
     return ip
 
 
-gpt = ''
+gpt = None
 
 
 @allowed_methods(['GET'])
 def get_reply(request):
+    global gpt
     from langchain.chat_models import ChatOpenAI
     from langchain.embeddings.openai import OpenAIEmbeddings
     from langchain.vectorstores import Chroma
