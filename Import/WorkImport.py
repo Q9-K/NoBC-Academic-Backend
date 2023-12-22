@@ -236,7 +236,7 @@ def process_files(folder):
     imported_files = get_imported_files()
     files = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
     for file in files:
-        if file not in imported_files:
+        if os.path.join(folder, file) not in imported_files:
             run(os.path.join(folder, file))
         else:
             print(file + ' has been imported!')
