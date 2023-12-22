@@ -99,7 +99,7 @@ def run(client, file_name):
         start_time = time.perf_counter()
         for line in file:
             origin_data = json.loads(line)
-            properties_to_extract = ["id", "cited_by_count", "display_name", "homepage_url", "image_url", "lineage",
+            properties_to_extract = ["id", "cited_by_count", "display_name", "homepage_url", "lineage",
                                      "ror", "type",
                                      "works_api_url", "works_count", "associated_institutions", "counts_by_year", "geo",
                                      "summary_stats"]

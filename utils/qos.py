@@ -41,7 +41,7 @@ def get_file(key: str) -> str:
     """
     q = Auth(ACCESS_KEY, SECRET_KEY)
     join_url = BASE_URL + key
-    return q.private_download_url(join_url)
+    return q.private_download_url(join_url, expires=3600*24*365)
 
 
 def delete_file(key: str) -> bool:
