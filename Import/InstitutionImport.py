@@ -17,7 +17,7 @@ client = Elasticsearch(hosts=['localhost'], timeout=60, http_auth=('elastic', 'b
 class InstitutionDocument(Document):
     id = Keyword()
     cited_by_count = Integer()
-    display_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
+    display_name = Text(analyzer='english', search_analyzer='english')
     homepage_url = Keyword(index=False)
     image_url = Keyword(index=False)
     lineage = Keyword(index=False)
