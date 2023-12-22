@@ -106,10 +106,12 @@ def generate_actions(file_name):
                                      "works_count", "summary_stats", "last_known_institution"]
             data = {key: data[key] for key in properties_to_extract}
 
-            if len(data['x_concepts']) > 10:
-                data['x_concepts'] = data['x_concepts'][:10]
-            else:
-                data['x_concepts'] = data['x_concepts']
+            x_concepts = []
+            for x_concept in data['x_concepts'][0:10]:
+                properties_to_extract = ["id", "wikidata", "display_name", "level", "score"]
+                x_concept = {key: x_concept[key] for key in properties_to_extract}
+                x_concepts.append(x_concept)
+            data['x_concepts'] = x_concepts
 
             properties_to_manual_set = ["user_id", "education_background", "personal_summary", "work_experience",
                                         "chinese_name", "title", "phone", "fax", "email", "address",
