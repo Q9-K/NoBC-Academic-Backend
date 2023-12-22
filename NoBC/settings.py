@@ -11,6 +11,8 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
 from pathlib import Path
+
+from celery.schedules import crontab
 from elasticsearch_dsl import connections
 
 try:
@@ -174,8 +176,8 @@ CACHES = {
     }
 }
 
-# CELERY_BROKER_URL = 'pyamqp://rabbit:123456@localhost//'
-# CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/1'
+CELERY_BROKER_URL = 'redis://123.60.99.8:6379/1'
+CELERY_RESULT_BACKEND = 'redis://123.60.99.8:6379/2'
 # CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 connections.configure(
@@ -187,3 +189,9 @@ connections.configure(
         'timeout': 60,
     }
 )
+CELERY_BEAT_SCHEDULE = {
+    'task-update-es-every-10-minutes': {
+        'task': 'work.tasks.update_es',
+        'schedule': crontab(minute='*/10'),
+    },
+}

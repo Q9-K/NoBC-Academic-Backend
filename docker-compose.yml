@@ -1,28 +1,28 @@
 version: "3.5"
 services:
-  elasticsearch:
-    image: elasticsearch:7.17.7
-    container_name: elasticsearch
-    restart: on-failure
-    environment:
-      - "discovery.type=single-node"
-    volumes:
-      - /data/elasticsearch:/usr/share/elasticsearch
-    ports:
-      - 9200:9200
+#  elasticsearch:
+#    image: elasticsearch:7.17.7
+#    container_name: elasticsearch
+#    restart: on-failure
+#    environment:
+#      - "discovery.type=single-node"
+#    volumes:
+#      - /data/elasticsearch:/usr/share/elasticsearch
+#    ports:
+#      - 9200:9200
 
-  mysql:
-    image: mysql:8.0.19
-    container_name: mysql
-    restart: on-failure
-    environment:
-      - "MYSQL_ROOT_PASSWORD=root"
-    volumes:
-      - /data/mysql/conf:/etc/mysql/conf.d
-      - /data/mysql/logs:/var/log/mysql
-      - /data/mysql/data:/var/lib/mysql
-    ports:
-      - 3306:3306
+#  mysql:
+#    image: mysql:8.0.19
+#    container_name: mysql
+#    restart: on-failure
+#    environment:
+#      - "MYSQL_ROOT_PASSWORD=root"
+#    volumes:
+#      - /data/mysql/conf:/etc/mysql/conf.d
+#      - /data/mysql/logs:/var/log/mysql
+#      - /data/mysql/data:/var/lib/mysql
+#    ports:
+#      - 3306:3306
 
   redis:
       image: redis:7.0.0 # 指定服务镜像，最好是与之前下载的redis配置文件保持一致
@@ -44,7 +44,7 @@ services:
 #  rabbitmq:
 #      restart: always
 #      image: rabbitmq:management
-#      container_name: rabbitm
+#      container_name: rabbitmq
 #      hostname: rabbit
 #      ports:
 #          - 5672:5672

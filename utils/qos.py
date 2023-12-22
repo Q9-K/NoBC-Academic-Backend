@@ -58,3 +58,9 @@ def delete_file(key: str) -> bool:
         return True
     else:
         return False
+
+if __name__ == '__main__':
+    #upload_file("default_institution.png", "./default_institution.png")
+    print(get_file("语境（考古学）.png"))
+
+
