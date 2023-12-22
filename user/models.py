@@ -11,7 +11,8 @@ class User(models.Model):
     email = models.EmailField(default='暂无', primary_key=True)
     histories = models.ManyToManyField(to='work.Work', through='History', related_name='history_user')
     favorites = models.ManyToManyField(to='work.Work', through='Favorite', related_name='favorite_user')
-    scholar_identity = models.ForeignKey(to='author.Author', on_delete=models.CASCADE, null=True)
+    scholar_identity = models.OneToOneField(to='author.Author', on_delete=models.CASCADE,
+                                            null=True, related_name='user')
     concept_focus = models.ManyToManyField(to='concept.Concept', related_name='focus_user')
     salt = models.CharField(max_length=4, default='')
     follows = models.ManyToManyField(to='author.Author', related_name='fans')

@@ -10,7 +10,7 @@ from NoBC.status_code import *
 from author.models import Author
 from concept.models import Concept
 from config import BUAA_MAIL_USER, ELAS_HOST, ELAS_USER, ELAS_PASSWORD
-from message.models import Certification
+from message.models import Certification, Complaint
 from utils.Md5 import create_md5, create_salt
 from utils.Response import response
 from utils.Token import generate_token
@@ -580,43 +580,6 @@ def de_authentication(request):
     return response(SUCCESS, '解除认证成功！')
 
 
-@allowed_methods(['POST'])
-@login_required
-def apply_for_certification(request):
-    """
-    申请认证
-    :param request: token, author_id
-    :return: [code, msg, data, error]
-    """
-    user = request.user
-    user: User
-    author_id = request.POST.get('author_id', None)
-    idcard_img = request.FILES.get('idcard_img', None)
-    if author_id and idcard_img:
-        try:
-            author = Author.objects.get(id=author_id)
-        except Author.DoesNotExist:
-            # 不存在则创建
-            author = Author.objects.create(id=author_id)
-        # 先把文件存储到本地
-        file_path = save_file(idcard_img)
-        # 使用七牛云对象存储上传图片
-        key = user.email + '_idcard.png'
-        ret = upload_file(key, file_path)
-        if ret:
-            # 删除本地存储的文件
-            os.remove(file_path)
-            # 创建认证消息
-            certification = Certification.objects.create(user=user, author=author, idcard_img_url=key)
-            certification.save()
-            return response(SUCCESS, '申请认证成功！')
-        else:
-            os.remove(file_path)
-            return response(FILE_ERROR, '上传身份证失败！', error=True)
-    else:
-        return response(PARAMS_ERROR, '字段不可为空', error=True)
-
-
 @allowed_methods(['GET'])
 @login_required
 def check_concept_focus(request):
@@ -668,3 +631,102 @@ def relieve_certification(request):
     user.scholar_identity = None
     user.save()
     return response(SUCCESS, '解除认证成功！')
+
+
+@allowed_methods(['POST'])
+@login_required
+def apply_for_certification(request):
+    """
+    申请认证
+    :param request: token, author_id
+    :return: [code, msg, data, error]
+    """
+    user = request.user
+    user: User
+    # 如果已经认证,要先解除认证
+    if user.scholar_identity:
+        return response(PARAMS_ERROR, '用户已认证！', error=True)
+    author_id = request.POST.get('author_id', None)
+    idcard_img = request.FILES.get('idcard_img', None)
+    if author_id and idcard_img:
+        try:
+            author = Author.objects.get(id=author_id)
+        except Author.DoesNotExist:
+            # 不存在则创建
+            author = Author.objects.create(id=author_id)
+        # 先把文件存储到本地
+        file_path = save_file(idcard_img)
+        # 使用七牛云对象存储上传图片
+        key = user.email + '_idcard.png'
+        ret = upload_file(key, file_path)
+        if ret:
+            # 删除本地存储的文件
+            os.remove(file_path)
+            # 创建认证消息
+            certification = Certification.objects.create(user=user, author=author, idcard_img_url=key)
+            certification.save()
+            return response(SUCCESS, '申请认证成功！')
+        else:
+            os.remove(file_path)
+            return response(FILE_ERROR, '上传身份证失败！', error=True)
+    else:
+        return response(PARAMS_ERROR, '字段不可为空', error=True)
+
+
+@allowed_methods(['GET'])
+@login_required
+def get_certification_status(request):
+    """
+    获取认证状态
+    :param request: token
+    :return: [code, msg, data, error]
+    """
+    user = request.user
+    user: User
+    if not user.scholar_identity:
+        return response(SUCCESS, '用户未认证！', data={'status': '未认证', 'scholar_id': None})
+    else:
+        return response(SUCCESS, '获取认证状态成功！', data={'status': '已认证', 'scholar_id': user.scholar_identity.id})
+
+
+@allowed_methods(['POST'])
+@login_required
+def apply_for_complaint(request):
+    """
+    申请投诉
+    :param request: token, author_id
+    :return: [code, msg, data, error]
+    """
+    user = request.user
+    user: User
+    author_id = request.POST.get('author_id', None)
+    complaint_content = request.POST.get('complaint_content', None)
+    if author_id and complaint_content:
+        try:
+            author = Author.objects.get(id=author_id)
+        except Author.DoesNotExist:
+            # 不存在则创建
+            author = Author.objects.create(id=author_id)
+        if not User.objects.filter(scholar_identity=author).exists():
+            return response(PARAMS_ERROR, '学者未认证！', error=True)
+        # 创建投诉消息
+        complaint = Complaint.objects.create(user=user, to_author=author, complaint_content=complaint_content)
+        complaint.save()
+        return response(SUCCESS, '申请投诉成功！')
+    else:
+        return response(PARAMS_ERROR, '字段不可为空', error=True)
+
+
+@allowed_methods(['GET'])
+@login_required
+def get_messages_all(request):
+    """
+    获取全部站内信
+    :param request: token
+    :return: [code, msg, data, error]
+    """
+    user = request.user
+    user: User
+    messages = user.msg.all()
+    data = [message.to_string() for message in messages]
+    return response(SUCCESS, '获取全部站内信成功！', data=data)

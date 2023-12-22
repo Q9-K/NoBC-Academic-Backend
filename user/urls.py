@@ -25,5 +25,8 @@ urlpatterns = [
     path('check_author_follow/', check_author_follow),
     path('apply_for_certification/', apply_for_certification),
     path('relieve_certification/', relieve_certification),
+    path('get_certification_status/', get_certification_status),
+    path('apply_for_complaint/', apply_for_complaint),
+    path('get_messages_all/', get_messages_all),
     path('test/', test),
 ]
