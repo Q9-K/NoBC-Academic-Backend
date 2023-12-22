@@ -1,21 +1,27 @@
 # Create your views here.
 import base64
 import json
+import random
+import sys
 from pprint import pprint
 from django.http import JsonResponse
 from elasticsearch_dsl import connections, Search, UpdateByQuery
 from elasticsearch_dsl.query import Match, Term, Q, MultiMatch, Query, Range
 from NoBC.status_code import *
-from utils.view_decorator import allowed_methods
+from utils.view_decorator import *
 from django.core.cache import cache
 from django.views.decorators.cache import cache_page
 from config import OPENAI_API_KEY
 import requests
+from django_redis import get_redis_connection
+import numpy as np
 
+redis_conn = get_redis_connection("default")
 elasticsearch_connection = connections.get_connection()
-INDEX_NAME = 'work'
+INDEX_NAME = 'work_optimized'
 page_size = 10
 min_score_threshold = 10.0
+sys.stdout.reconfigure(encoding='utf-8')
 
 
 @allowed_methods(['GET'])
@@ -50,7 +56,7 @@ def search(request):
     search = search.highlight('title', 'abstract')
     search = search.source(['publication_date', 'type', 'language',
                             'visit_count', 'cited_by_count', 'id',
-                            'authorships'])
+                            'authorships', 'abstract', 'title', 'locations'])
     if page_number:
         page_number = int(page_number)
         search = search[(page_number - 1) * page_size:(page_number - 1) * page_size + page_size - 1]
@@ -65,7 +71,11 @@ def search(request):
             'count': search.count(),
             'data': [{
                 'highlight': hit.meta.highlight.to_dict(),
-                'other': hit.to_dict()
+                'other': {
+                    **hit.to_dict(),
+                    'citation': get_citation(hit.to_dict())
+                }
+
             } for hit in response]
         },
     })
@@ -104,10 +114,12 @@ def advanced_search(request):
             search = search.query(time_range_2)
 
     if source:
+        # query = Q("nested", path="locations",
+        #           query=Q("nested", path="locations.source",
+        #                   query=Q("match", locations__source__display_name=source)))
         query = Q("nested", path="locations",
-                  query=Q("nested", path="locations.source",
-                          query=Q("match", locations__source__display_name=source)))
-        print(query.to_dict())
+                  query=Q("match", locations__source__display_name=source))
+        # print(query.to_dict())
         search = search.query(query)
 
     if concept:
@@ -135,7 +147,7 @@ def advanced_search(request):
         search = search.sort(sort_by)
     search = search.source(['publication_date', 'type', 'language',
                             'visit_count', 'cited_by_count', 'id',
-                            'authorships'])
+                            'authorships', 'abstract', 'title', 'locations'])
     search = search.highlight('title', 'abstract')
     if page_number:
         page_number = int(page_number)
@@ -151,92 +163,87 @@ def advanced_search(request):
             'count': search.count(),
             'data': [{
                 'highlight': hit.meta.highlight.to_dict(),
-                'other': hit.to_dict()
+                'other': {
+                    **hit.to_dict(),
+                    'citation': get_citation(hit.to_dict),
+                }
             } for hit in response]
         },
     })
 
 
+# @login_required
 @allowed_methods(['GET'])
 def get_work(request):
     user_id = request.GET.get('user_id')
     if user_id:
         id = request.GET.get('id')
-        if cache.get(id[len('https://openalex.org/'):]) is None:
+        if cache.get(id) is None:
             search = Search(using=elasticsearch_connection, index=INDEX_NAME)
             search = search.filter('term', id=id)
             response = search.execute()
             if len(response.hits) > 0:
                 data = [hit.to_dict() for hit in response][0]
-                data['concepts'] = data['concepts'][0:5]
-                pdf_url = None
-                for item in data['locations']:
-                    if item['pdf_url']:
-                        pdf_url = item['pdf_url']
-                        break
-                data.pop('locations', None)
-                data['pdf_url'] = pdf_url
+                data['citation'] = get_citation(data)
                 info = []
-                for referenced_work in data['referenced_works'][0:10]:
+                for referenced_work in data['referenced_works']:
                     s = Search(using=elasticsearch_connection, index=INDEX_NAME)
                     s = s.filter('term', id=referenced_work)
                     res = s.execute()
                     if len(res.hits) > 0:
                         res = [hit.to_dict() for hit in res][0]
-                        pdf_url = None
-                        for item in res['locations']:
-                            if item['pdf_url']:
-                                pdf_url = item['pdf_url']
-                                break
                         info.append({
                             'id': referenced_work,
                             'title': res['title'],
                             'cited_by_count': res['cited_by_count'],
-                            'pdf_url': pdf_url
+                            'pdf_url': res['pdf_url'],
                         })
                 data['referenced_works_info'] = info
                 info = []
-                for related_work in data['related_works'][0:10]:
+                for related_work in data['related_works']:
                     s = Search(using=elasticsearch_connection, index=INDEX_NAME)
                     s = s.filter('term', id=related_work)
                     res = s.execute()
                     if len(res.hits) > 0:
                         res = [hit.to_dict() for hit in res][0]
-                        pdf_url = None
-                        for item in res['locations']:
-                            if item['pdf_url']:
-                                pdf_url = item['pdf_url']
-                                break
                         info.append({
                             'id': related_work,
                             'title': res['title'],
                             'cited_by_count': res['cited_by_count'],
-                            'pdf_url': pdf_url
+                            'pdf_url': res['pdf_url']
                         })
                 data['related_works_info'] = info
                 data.pop('referenced_works', None)
                 data.pop('related_works', None)
             else:
                 data = {}
-            cache.set(id[len('https://openalex.org/'):], data, 5)
+            cache.set(id, data, 60 * 60)
         else:
-            data = cache.get(id[len('https://openalex.org/'):])
-        ip = get_client_ip(request)
-        params = {'id': id, 'user_id': user_id, 'ip': ip}
-        keys = json.dumps(params)
-        keys = base64.b64encode(keys.encode()).decode()
-        if cache.get(keys) is None:
-            update_by_query = UpdateByQuery(using=elasticsearch_connection, index=INDEX_NAME)
-            update_by_query = update_by_query.filter('term', id=id)
-            update_by_query = update_by_query.script(source="ctx._source.visit_count++", lang='painless')
-            update_by_query.execute()
-            cache.set(keys, 1, 60 * 60)
+            data = cache.get(id)
+        # ip = get_client_ip(request)
+        # params = {'id': id, 'user_id': user_id, 'ip': ip}
+        key = 'visit_' + id
+        if cache.get(key) is None:
+            # update_by_query = UpdateByQuery(using=elasticsearch_connection, index=INDEX_NAME)
+            # update_by_query = update_by_query.filter('term', id=id)
+            # update_by_query = update_by_query.script(source="ctx._source.visit_count++", lang='painless')
+            # update_by_query.execute()
+            cache.set(key, set(user_id), 60 * 60)
+        else:
+            visit_set = cache.get(key)
+            if user_id not in visit_set:
+                # update_by_query = UpdateByQuery(using=elasticsearch_connection, index=INDEX_NAME)
+                # update_by_query = update_by_query.filter('term', id=id)
+                # update_by_query = update_by_query.script(source="ctx._source.visit_count++", lang='painless')
+                # update_by_query.execute()
+                visit_set.add(user_id)
+                cache.set(key, visit_set)
         return JsonResponse({
             'code': SUCCESS,
             'error': False,
             'message': 'OK',
             'data': {
-                'count': len(data),
+                'count': 0 if data == {} else 1,
                 'data': data
             }
         })
@@ -251,22 +258,31 @@ def get_work(request):
 
 @allowed_methods(['GET'])
 def get_popular_works(request):
-    type = request.GET.get('type')
-    search = Search(using=elasticsearch_connection, index=INDEX_NAME)
+    institution_id = request.GET.get('institution_id')
+    concept_id = request.GET.get('concept_id')
 
-    if type == 'refer':
+    search = Search(using=elasticsearch_connection, index=INDEX_NAME)
+    key = 'popular_works'
+    if institution_id:
+        key = key + '_' + institution_id
+        nested_query = Q('term', corresponding_institution_ids=institution_id)
+        search = search.query(nested_query)
+    elif concept_id:
+        key = key + '_' + concept_id
+        nested_query = Q('nested', path='concepts', query=Q('term', concepts__id=concept_id))
+        search = search.query(nested_query)
+    if cache.get(key):
+        data = cache.get(key)
+    else:
         search = search.sort('-cited_by_count')
-    if type == 'visit':
-        search = search.sort("-visit_count")
-    search = search.source(['publication_date', 'type', 'language',
-                            'visit_count', 'cited_by_count', 'id',
-                            'authorships'])
-    if cache.get(type) is None:
+        search = search.source(['publication_date', 'visit_count', 'cited_by_count', 'id', 'title', 'authorships'])
+        search = search.extra(size=200)
         response = search.execute()
         data = [hit.to_dict() for hit in response]
-        cache.set(type, data, 60 * 60 * 24)
-    else:
-        data = cache.get(type)
+        cache.set(key, data, timeout=None)
+    if data:
+        data = weighted_random_choice(data)
+
     return JsonResponse({
         'code': SUCCESS,
         'error': False,
@@ -367,3 +383,28 @@ def download_webpage(url, destination_file):
             file.write(response.content)
     except requests.exceptions.RequestException as e:
         print(e)
+
+
+def weighted_random_choice(weighted_works):
+    # 提取权重和元素
+    weights = np.array([work['cited_by_count'] for work in weighted_works])
+    elements = np.array(weighted_works)
+
+    # 计算累积权重
+    cum_weights = np.cumsum(weights)
+
+    # 从累积权重中进行随机选择
+    chosen_indices = np.searchsorted(cum_weights, np.random.rand(10) * cum_weights[-1])
+
+    # 返回选择的结果
+    chosen_work = elements[chosen_indices]
+    return chosen_work.tolist()
+
+
+def get_citation(data):
+    publication_date = data['publication_date']
+    title = data['title']
+    authorships = data['authorships']
+    citation = (f"{', '.join(authorship['author']['display_name'] for authorship in authorships)} "
+                f"({publication_date}). {title}.")
+    return citation
