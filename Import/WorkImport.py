@@ -129,14 +129,14 @@ def generate_actions(file_name):
                                      "corresponding_institution_ids",
                                      ]
             abstract = data.get('abstract_inverted_index')
-            data = {key: data[key] for key in properties_to_extract}
+            data = {key: data.get(key) for key in properties_to_extract}
             # 提取id
             data['id'] = data['id'][len('https://openalex.org/'):]
             # 提取authorships
             authorships = []
             for authorship in data['authorships'][0:10]:
                 properties_to_extract = ["author", "institutions", "countries"]
-                authorship = {key: authorship[key] for key in properties_to_extract if key in properties_to_extract}
+                authorship = {key: authorship.get(key) for key in properties_to_extract}
                 authorship["author"] = {
                     "id": authorship["author"]["id"][len('https://openalex.org/'):] if authorship["author"].get(
                         'id') else None,
