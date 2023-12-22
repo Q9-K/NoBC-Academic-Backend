@@ -10,7 +10,6 @@ from elasticsearch import Elasticsearch
 from path import data_path
 from collections import deque
 
-
 connections.create_connection(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
 client = Elasticsearch(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
 INDEX_NAME = 'work'
@@ -21,6 +20,19 @@ class WorkDocument(Document):
     title = Text(analyzer='ik_max_word', search_analyzer='ik_smart', fields={
         'suggestion': Completion(analyzer='ik_max_word')
     })
+    cited_by_count = Integer()
+    concepts = Nested(
+        properties={
+            "id": Keyword(),
+            "wikidata": Keyword(index=False),
+            "display_name": Text(
+                fields={
+                    'keyword': Keyword()
+                }
+            ),
+            "level": Integer(),
+        }
+    )
     authorships = Nested(
         properties={
             "author": Object(
@@ -39,22 +51,10 @@ class WorkDocument(Document):
                             'keyword': Keyword()
                         }),
                     "id": Keyword(),
-                    "type": Keyword(),
-                }
-            )
-        }
-    )
-    cited_by_count = Integer()
-    concepts = Nested(
-        properties={
-            "id": Keyword(),
-            "wikidata": Keyword(index=False),
-            "display_name": Text(
-                fields={
-                    'keyword': Keyword()
+                    "type": Keyword(index=False),
                 }
             ),
-            "level": Integer(),
+            "country": Keyword(index=False),
         }
     )
     counts_by_year = Nested(
@@ -135,7 +135,7 @@ def generate_actions(file_name):
             # 提取authorships
             authorships = []
             for authorship in data['authorships'][0:10]:
-                properties_to_extract = ["author", "institutions", "is_corresponding"]
+                properties_to_extract = ["author", "institutions", "countries"]
                 authorship = {key: authorship[key] for key in properties_to_extract}
                 authorship["author"] = {
                     "id": authorship["author"]["id"][len('https://openalex.org/'):] if authorship["author"].get(
@@ -151,6 +151,8 @@ def generate_actions(file_name):
                     }
                     institutions.append(institution)
                 authorship["institutions"] = institutions
+                authorship["country"] = authorship["countries"][0] if authorship["countries"] else None
+                authorship.pop("countries")
                 authorships.append(authorship)
             data["authorships"] = authorships
             # 处理concepts
