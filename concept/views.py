@@ -12,6 +12,7 @@ from NoBC.status_code import *
 from utils.generate_image import generate_image
 from utils.view_decorator import allowed_methods, login_required
 from utils.translate import translate
+from utils.qos import upload_file,get_file
 
 # Create your views here.
 
@@ -74,11 +75,32 @@ def get_subdomains(request):
 
     response = client.search(index="concept", body=query)
 
-    # 提取结果
+    # 提取结果并检查是否需要翻译
+    to_translate = []
+    translate_mapping = []
     results = []
+
     for hit in response['hits']['hits']:
         source_data = hit['_source']
+        document_id = hit['_id']  # 捕获文档ID
+
+        if 'chinese_display_name' not in source_data or source_data['chinese_display_name'] == '':
+            to_translate.append(source_data['display_name'])
+            translate_mapping.append((document_id, source_data))
         results.append(source_data)
+        # 进行翻译
+    if to_translate:
+        translated = translate("\n".join(to_translate))
+
+        # 将翻译结果更新回对应的字段并写回 Elasticsearch
+        for (document_id, source_data), translated_name in zip(translate_mapping, translated):
+            source_data['chinese_display_name'] = translated_name
+
+            # 更新 Elasticsearch 文档
+            update_body = {"doc": source_data}
+            client.update(index="concept", id=document_id, body=update_body)
+
+
     return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
 
 
@@ -143,12 +165,12 @@ def search_concept_by_keyword(request):
 
     # 进行翻译
     if len(to_translate) > 0:
-        translated = translate("//".join(to_translate))  # 假设 translate 函数可以处理这个字符串
-        translated_names = translated.split("//")
+        translated = translate("\n".join(to_translate))  # 假设 translate 函数可以处理这个字符串
+
 
         # 更新 Elasticsearch 并更新返回数据
         for i, document_id in enumerate(ids_to_update):
-            translated_name = translated_names[i] if i < len(translated_names) else None
+            translated_name = translated[i] if i < len(translated) else None
             if translated_name:
                 update_body = {"doc": {"chinese_display_name": translated_name}}
                 client.update(index="concept", id=document_id, body=update_body)
@@ -175,52 +197,50 @@ def get_concept_by_id(request):
         "size": 1
     }
 
-    results = []
-    to_translate = []
-    ids_to_update = []  # 仅存储需要更新的文档的 document_id
     response = client.search(index="concept", body=query)
-
-    # 收集需要翻译的数据
+    results =[]
     for hit in response['hits']['hits']:
         source_data = hit['_source']
-        if source_data['chinese_display_name'] == '':
-            to_translate.append(source_data['display_name'])
-            ids_to_update.append(hit['_id'])  # 仅存储缺少字段的文档的 document_id
+        document_id = hit['_id']
 
-        # if not source_data['image_url']:
+        # 收集需要翻译的 display_name
+        to_translate = []
+        translate_mapping = []  # 存储需要翻译的对象引用和字段名称
 
-        # todo 对象存储
-
-        # if source_data['chinese_display_name'] == '':
-        #     source_data['image_url'] = generate_image(source_data['display_name'])
-        # else:
-        #     source_data['image_url'] = generate_image(source_data['chinese_display_name'])
+        if not source_data['image_url']:
+            if source_data['chinese_display_name'] == '':
+                source_data['image_url'] = generate_image(source_data['display_name'])
+            else:
+                source_data['image_url'] = generate_image(source_data['chinese_display_name'])
 
         # 翻译 ancestors 和 related_concepts 中的 chinese_display_name
+
+        # 检查最外层的 chinese_display_name 是否需要翻译
+        if 'chinese_display_name' not in source_data or source_data['chinese_display_name'] == '':
+            to_translate.append(source_data['display_name'])
+            translate_mapping.append((source_data, 'chinese_display_name'))
 
         for field in ['ancestors', 'related_concepts']:
             if field in source_data:
                 for item in source_data[field]:
                     if 'chinese_display_name' not in item or item['chinese_display_name'] == '':
                         to_translate.append(item['display_name'])
+                        translate_mapping.append((item, 'chinese_display_name'))
+
+        # 进行翻译
+        if to_translate:
+            translated = translate("\n".join(to_translate))
+
+
+            # 将翻译结果更新回对应的字段
+            for part, (obj, field) in zip(translated, translate_mapping):
+                obj[field] = part
+
+            # 更新 Elasticsearch 文档
+            update_body = {"doc": source_data}
+            client.update(index="concept", id=document_id, body=update_body)
 
         results.append(source_data)
-
-    # 进行翻译
-    if to_translate:
-        translated_string = translate("//".join(to_translate))
-        translated_parts = translated_string.split("//")
-
-        # 分配翻译结果并更新 Elasticsearch
-        for i, document_id in enumerate(ids_to_update):
-            if i < len(translated_parts):
-                update_body = {"doc": {"chinese_display_name": translated_parts[i]}}
-                client.update(index="concept", id=document_id, body=update_body)
-
-                # 同时更新返回的结果集
-                for result in results:
-                    if result['id'] == document_id:  # 假设 'id' 是文档的唯一标识符
-                        result['chinese_display_name'] = translated_parts[i]
 
     return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
 
@@ -260,19 +280,19 @@ def get_hot_concepts(request):
 
     # 进行翻译
     if to_translate:
-        translated_string = translate("//".join(to_translate))
-        translated_parts = translated_string.split("//")
+        translated = translate("\n".join(to_translate))
+
 
         # 分配翻译结果并更新 Elasticsearch
         for i, document_id in enumerate(ids_to_update):
-            if i < len(translated_parts):
-                update_body = {"doc": {"chinese_display_name": translated_parts[i]}}
+            if i < len(translated):
+                update_body = {"doc": {"chinese_display_name": translated[i]}}
                 client.update(index="concept", id=document_id, body=update_body)
 
                 # 同时更新返回的结果集
                 for result in results:
                     if result['id'] == document_id:
-                        result['chinese_display_name'] = translated_parts[i]
+                        result['chinese_display_name'] = translated[i]
 
 
     return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
@@ -300,27 +320,6 @@ def search_works_by_concept(request):
     # 执行搜索
     response = client.search(index="work", body=query)
 
-    # 处理结果
-    results = [hit["_source"] for hit in response['hits']['hits']]
-    return JsonResponse(results, safe=False)
-
-
-def search_works_with_empty_concept_id(request):
-    # Elasticsearch 查询，查找 concepts.id 字段为空的文档
-    query = {
-        "query": {
-            "bool": {
-                "must_not": {
-                    "exists": {
-                        "field": "concepts.id"
-                    }
-                }
-            }
-        }
-    }
-
-    # 执行搜索
-    response = client.search(index="work", body=query)
     # 处理结果
     results = [hit["_source"] for hit in response['hits']['hits']]
     return JsonResponse(results, safe=False)

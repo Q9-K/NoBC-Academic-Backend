@@ -2,6 +2,12 @@ from elasticsearch_dsl.connections import connections
 
 elasticsearch_connection = connections.get_connection()
 
+# 索引名映射
+AUTHOR = 'author'
+CONCEPT = 'concept'
+INSTITUTION = 'institution'
+SOURCE = 'source'
+WORK = 'work_final'
 
 # 根据id获取作者的所有作品，不分页就获取全部
 def es_get_works(author_id, page_num=-1, page_size=-1):
@@ -24,7 +30,7 @@ def es_get_works(author_id, page_num=-1, page_size=-1):
     else:
         query_body['from'] = 0
         query_body['size'] = 20
-    res = elasticsearch_connection.search(index='work', body=query_body)
+    res = elasticsearch_connection.search(index=WORK, body=query_body)
     return res
 
 
@@ -37,5 +43,5 @@ def es_get_author_by_id(author_id):
             }
         }
     }
-    res = elasticsearch_connection.search(index='author', body=query_body)
+    res = elasticsearch_connection.search(index=AUTHOR, body=query_body)
     return res
