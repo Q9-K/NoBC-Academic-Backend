@@ -44,8 +44,8 @@ def get_sources_by_initial(request):
         page_size = int(request.GET.get('page_size', 10))
         query_body = {
             "query": {
-                'match_phrase_prefix': {
-                    'display_name': initial,
+                'prefix': {
+                    'display_name.keyword': initial,
                 }
             },
             "_source": ["id", "display_name", "x_concepts", "summary_stats"],
@@ -125,14 +125,6 @@ def get_hot_sources(request):
                 {
                     "summary_stats.2yr_mean_citedness": {
                         "order": "desc",
-                        "nested": {
-                            "path": "summary_stats",
-                            "filter": {
-                                "exists": {
-                                    "field": "summary_stats.2yr_mean_citedness"
-                                }
-                            }
-                        }
                     }
                 }
             ],
@@ -162,8 +154,6 @@ def get_hot_sources(request):
 def get_authors_by_cited(request):
     if request.method == 'GET':
         source_id = request.GET.get('source_id')
-        page_num = int(request.GET.get('page_num', 1))
-        page_size = int(request.GET.get('page_size', 10))
         query_body = {
             "query": {
                 "nested": {
@@ -173,7 +163,7 @@ def get_authors_by_cited(request):
                             "path": "locations.source",
                             "query": {
                                 "term": {
-                                    "ilocations.source.d": {
+                                    "locations.source.id": {
                                         "value": source_id
                                     }
                                 }
@@ -182,17 +172,65 @@ def get_authors_by_cited(request):
                     }
                 }
             },
-            """
+            "size": 10000,
+        }
+        es_res = elasticsearch_connection.search(index='work', body=query_body)
+        res1 = {
+            'total': es_res['hits']['total']['value'],
+            'sources': [],
+        }
+        for hit in es_res['hits']['hits']:
+            res1['sources'].append(hit['_source'])
+
+        print(len(res1.get('sources')))
+
+        res = dict()
+        for work in res1['sources']:
+            cited_by_count = work['cited_by_count']
+            authorships = work['authorships']
+            for author in authorships:
+                author_id = author['author']['id']
+                if author_id in res:
+                    res[author_id]['cited_by_count'] += cited_by_count
+                    res[author_id]['work_count'] += 1
+                else:
+                    new_author = {
+                        'author': author['author'],
+                        'cited_by_count': cited_by_count,
+                        'work_count': 1,
+                    }
+                    res[author_id] = new_author
+        print(len(res))
+        sorted_res = [value for key, value in sorted(res.items(), key=lambda x: x[1]["cited_by_count"], reverse=True)]
+
+        query_body1 = {
+            "query": {
+                "nested": {
+                    "path": "locations",
+                    "query": {
+                        "nested": {
+                            "path": "locations.source",
+                            "query": {
+                                "term": {
+                                    "locations.source.id": {
+                                        "value": source_id
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
             "aggs": {
                 "all_authors": {
                     "nested": {
-                        "path": "authorships"
+                        "path": "authorships.author"
                     },
                     "aggs": {
                         "authors_by_id": {
                             "terms": {
-                                "field": "authorships.author.id.keyword",  # 使用.keyword确保对字符串进行精确匹配
-                                "size": 10  # 设置返回的聚合桶的数量
+                                "field": "authorships.author.id.keyword",
+                                "size": 10
                             },
                             "aggs": {
                                 "total_cited_by_count": {
@@ -204,11 +242,42 @@ def get_authors_by_cited(request):
                         }
                     }
                 }
-            },"""
+            }
+        }
+
+        return JsonResponse({
+            'code': SUCCESS,
+            'error': False,
+            'message': '查询成功',
+            'data': sorted_res,
+        })
+    else:
+        return JsonResponse({
+            'code': METHOD_ERROR,
+            'error': True,
+            'message': '请求方式错误',
+        })
+
+
+def search_sources(request):
+    if request.method == 'GET':
+        keyword = request.GET.get('journal_name')
+        page_num = int(request.GET.get('page_num', 1))
+        page_size = int(request.GET.get('page_size', 10))
+        query_body = {
+            "query": {
+                "match": {
+                    "display_name": {
+                        "query": keyword,
+                        "fuzziness": "auto"
+                    }
+                }
+            },
+            "_source": ["id", "display_name", "x_concepts", "summary_stats"],
             "from": (page_num - 1) * page_size,
             "size": page_size,
         }
-        es_res = elasticsearch_connection.search(index='work', body=query_body)
+        es_res = elasticsearch_connection.search(index='source', body=query_body)
         res = {
             'total': es_res['hits']['total']['value'],
             'sources': [],
@@ -242,7 +311,7 @@ def get_sources_by_concept(request):
                     'query': {
                         'match': {
                             'x_concepts.display_name': concept,
-                            #'operator': "and",
+                            # 'operator': "and",
                         }
                     }
                 }
