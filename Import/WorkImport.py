@@ -11,7 +11,7 @@ from collections import deque
 
 connections.create_connection(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
 client = Elasticsearch(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
-INDEX_NAME = 'work_final'
+INDEX_NAME = 'work'
 
 
 class WorkDocument(Document):
@@ -72,7 +72,7 @@ class WorkDocument(Document):
         properties={
             "landing_page_url": Keyword(index=False),
             "pdf_url": Keyword(index=False),
-            "source": Nested(
+            "source": Object(
                 properties={
                     "id": Keyword(),
                     "display_name": Text(
@@ -265,4 +265,3 @@ if __name__ == "__main__":
     end_time = datetime.now()
     print("Finished insert to Elasticsearch at{}".format(end_time))
     print("cost time {}".format(end_time - start_time))
-
