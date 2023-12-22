@@ -383,6 +383,7 @@ def download_webpage(url, destination_file):
 
 @allowed_methods(['GET'])
 def get_quick_reply(request):
+    global gpt
     from langchain.chat_models import ChatOpenAI
     from langchain.embeddings.openai import OpenAIEmbeddings
     from langchain.vectorstores import Chroma
