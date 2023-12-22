@@ -647,12 +647,16 @@ def apply_for_certification(request):
         return response(PARAMS_ERROR, '用户已认证！', error=True)
     author_id = request.POST.get('author_id', None)
     idcard_img = request.FILES.get('idcard_img', None)
-    if author_id and idcard_img:
+    remark = request.POST.get('remark', None)
+    if author_id and idcard_img and remark:
         try:
             author = Author.objects.get(id=author_id)
         except Author.DoesNotExist:
             # 不存在则创建
             author = Author.objects.create(id=author_id)
+        # 如果学者已经被认证过,返回错误
+        if User.objects.filter(scholar_identity=author).exists():
+            return response(MYSQL_ERROR, '该学者已经被认证过', error=True)
         # 先把文件存储到本地
         file_path = save_file(idcard_img)
         # 使用七牛云对象存储上传图片
@@ -662,7 +666,7 @@ def apply_for_certification(request):
             # 删除本地存储的文件
             os.remove(file_path)
             # 创建认证消息
-            certification = Certification.objects.create(user=user, author=author, idcard_img_url=key)
+            certification = Certification.objects.create(user=user, author=author, idcard_img_url=key, content=remark)
             certification.save()
             return response(SUCCESS, '申请认证成功！')
         else:

@@ -32,6 +32,7 @@ class Certification(models.Model):
     user = models.ForeignKey(to='user.User', related_name='certification', on_delete=models.CASCADE)
     # 学者外键
     author = models.ForeignKey(to='author.Author', related_name='certification', on_delete=models.CASCADE)
+    content = models.TextField(default='')
     # 状态可选项
     PENDING = 'PD'
     PASSED = 'PS'
@@ -54,7 +55,8 @@ class Certification(models.Model):
             'status': self.get_status_display(),
             'result_msg': self.result_msg,
             'idcard_img_url': self.idcard_img_url,
-            'date_time': self.date_time
+            'date_time': self.date_time,
+            'remark': self.content
         }
 
 
