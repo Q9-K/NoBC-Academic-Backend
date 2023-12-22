@@ -7,6 +7,8 @@ from NoBC.status_code import *
 import threading
 
 elasticsearch_connection = connections.get_connection()
+SOURCE_INDEX = 'source'
+WORK_INDEX = 'work_optimized'
 
 
 def get_source_by_id(request):
@@ -20,7 +22,7 @@ def get_source_by_id(request):
             },
             "_source": ["display_name", "cited_by_count", "counts_by_year", "works_count", "summary_stats", "x_concepts"]
         }
-        es_res = elasticsearch_connection.search(index='source', body=query_body)
+        es_res = elasticsearch_connection.search(index=SOURCE_INDEX, body=query_body)
         res = es_res['hits']['hits'][0]['_source']
 
         return JsonResponse({
@@ -64,7 +66,7 @@ def get_sources_by_initial(request):
                 }
             }
         }
-        es_res = elasticsearch_connection.search(index='source', body=query_body)
+        es_res = elasticsearch_connection.search(index=SOURCE_INDEX, body=query_body)
         res = {
             'total': es_res['hits']['total']['value'],
             'sources': [],
@@ -91,7 +93,7 @@ def get_authors_distribution(request):
         page_num = int(request.GET.get('page_num', 1))
         page_size = int(request.GET.get('page_size', 10))
         query_body = {}
-        es_res = elasticsearch_connection.search(index='source', body=query_body)
+        es_res = elasticsearch_connection.search(index=SOURCE_INDEX, body=query_body)
         res = {
             'total': es_res['hits']['total']['value'],
             'sources': [],
@@ -132,7 +134,61 @@ def get_hot_sources(request):
             "from": (page_num - 1) * page_size,
             "size": page_size
         }
-        es_res = elasticsearch_connection.search(index='source', body=query_body)
+        es_res = elasticsearch_connection.search(index=SOURCE_INDEX, body=query_body)
+        res = []
+        for hit in es_res['hits']['hits']:
+            res.append(hit['_source'])
+
+        return JsonResponse({
+            'code': SUCCESS,
+            'error': False,
+            'message': '查询成功',
+            'data': res,
+        })
+    else:
+        return JsonResponse({
+            'code': METHOD_ERROR,
+            'error': True,
+            'message': '请求方式错误',
+        })
+
+
+def get_works_by_cited(request):
+    if request.method == 'GET':
+        source_id = request.GET.get("id")
+        page_num = int(request.GET.get('page_num', 1))
+        page_size = int(request.GET.get('page_size', 10))
+        query_body = {
+            "query": {
+                "nested": {
+                    "path": "locations",
+                    "query": {
+                        "nested": {
+                            "path": "locations.source",
+                            "query": {
+                                "term": {
+                                    "locations.source.id": {
+                                        "value": source_id
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "sort": [
+                {
+                    "cited_by_count": {
+                        "order": "desc",
+                    }
+                }
+            ],
+            "_source": ["id", "cited_by_count"],
+            "from": (page_num - 1) * page_size,
+            "size": page_size
+        }
+
+        es_res = elasticsearch_connection.search(index=WORK_INDEX, body=query_body)
         res = []
         for hit in es_res['hits']['hits']:
             res.append(hit['_source'])
@@ -154,6 +210,7 @@ def get_hot_sources(request):
 def get_authors_by_cited(request):
     if request.method == 'GET':
         source_id = request.GET.get('source_id')
+        """
         query_body = {
             "query": {
                 "nested": {
@@ -174,7 +231,7 @@ def get_authors_by_cited(request):
             },
             "size": 10000,
         }
-        es_res = elasticsearch_connection.search(index='work', body=query_body)
+        es_res = elasticsearch_connection.search(index=WORK_INDEX, body=query_body)
         res1 = {
             'total': es_res['hits']['total']['value'],
             'sources': [],
@@ -202,7 +259,7 @@ def get_authors_by_cited(request):
                     res[author_id] = new_author
         print(len(res))
         sorted_res = [value for key, value in sorted(res.items(), key=lambda x: x[1]["cited_by_count"], reverse=True)]
-
+        """
         query_body1 = {
             "query": {
                 "nested": {
@@ -224,32 +281,38 @@ def get_authors_by_cited(request):
             "aggs": {
                 "all_authors": {
                     "nested": {
-                        "path": "authorships.author"
+                        "path": "authorships"
                     },
                     "aggs": {
                         "authors_by_id": {
                             "terms": {
-                                "field": "authorships.author.id.keyword",
-                                "size": 10
+                                "field": "authorships.author.id",
+                                "size": 20,
                             },
                             "aggs": {
-                                "total_cited_by_count": {
-                                    "sum": {
-                                        "field": "cited_by_count"
+                                "reverse_nested_cited_by_count": {
+                                    "reverse_nested": {},
+                                    "aggs": {
+                                        "total_cited_by_count": {
+                                            "sum": {
+                                                "field": "cited_by_count"
+                                            }
+                                        }
                                     }
-                                }
-                            }
-                        }
-                    }
+                                },
+                            },
+                        },
+                    },
                 }
             }
         }
-
+        es_res = elasticsearch_connection.search(index=WORK_INDEX, body=query_body1)
+        res = es_res["aggregations"]
         return JsonResponse({
             'code': SUCCESS,
             'error': False,
             'message': '查询成功',
-            'data': sorted_res,
+            'data': res,
         })
     else:
         return JsonResponse({
@@ -277,7 +340,7 @@ def search_sources(request):
             "from": (page_num - 1) * page_size,
             "size": page_size,
         }
-        es_res = elasticsearch_connection.search(index='source', body=query_body)
+        es_res = elasticsearch_connection.search(index=SOURCE_INDEX, body=query_body)
         res = {
             'total': es_res['hits']['total']['value'],
             'sources': [],
@@ -342,7 +405,7 @@ def get_sources_by_concept(request):
             "from": (page_num - 1) * page_size,
             "size": page_size,
         }
-        es_res = elasticsearch_connection.search(index='source', body=query_body)
+        es_res = elasticsearch_connection.search(index=SOURCE_INDEX, body=query_body)
         res = {
             'total': es_res['hits']['total']['value'],
             'sources': [],
