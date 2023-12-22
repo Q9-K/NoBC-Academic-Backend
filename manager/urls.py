@@ -3,7 +3,14 @@ from .views import *
 
 
 urlpatterns = [
-    path('login/', login_view),
-    path('get_certifications/', get_certifications),
-    path('get_complaints/', get_complaints),
+    path('login/', login),
+    path('get_certifications_pending/', get_certifications_pending),
+    path('get_certifications_all/', get_certifications_all),
+    path('get_complaints_pending/', get_complaints_pending),
+    path('get_complaints_all/', get_complaints_all),
+    path('check_certification/', check_certification),
+    path('check_complaint/', check_complaint),
+    path('get_certification_detail/', get_certification_detail),
+    path('get_complaint_detail/', get_complaint_detail),
+
 ]
