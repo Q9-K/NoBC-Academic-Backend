@@ -103,7 +103,7 @@ def generate_actions(file_name):
         for line in lines:
             data = json.loads(line)
             properties_to_extract = ["id", "cited_by_count", "counts_by_year", "display_name",
-                                     "works_count", "summary_stats", "last_known_institution"]
+                                     "works_count", "summary_stats", "last_known_institution", "x_concepts"]
             data = {key: data[key] for key in properties_to_extract}
 
             x_concepts = []
@@ -114,7 +114,7 @@ def generate_actions(file_name):
             data['x_concepts'] = x_concepts
 
             properties_to_manual_set = ["user_id", "education_background", "personal_summary", "work_experience",
-                                        "chinese_name", "title", "phone", "fax", "email", "address",
+                                        "avatar", "chinese_name", "title", "phone", "fax", "email", "address",
                                         "personal_website", "official_website", "google", "twitter", "facebook",
                                         "youtube", "gender", "language"]
 

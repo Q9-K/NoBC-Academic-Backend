@@ -46,7 +46,6 @@ class SourceDocument(Document):
     )
     type = Keyword()
     updated_date = Date()
-    works_api_url = Keyword(index=False)
     works_count = Integer()
     # 添加字段
     x_concepts = Nested(
