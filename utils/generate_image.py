@@ -1,7 +1,8 @@
 from PIL import Image, ImageDraw, ImageFont
+from utils.qos import upload_file,get_file
 def generate_image(text):
     # 创建一个新的图片
-    image = Image.new('RGB', (200, 200), color=(255,255,255))
+    image = Image.new('RGB', (500, 500), color=(255,255,255))
 
     # 选择一个支持中文的字体和字体大小
     font_path = "simsun.ttc"  # 根据你的系统选择正确的字体路径
@@ -26,5 +27,12 @@ def generate_image(text):
 
     # 将文本添加到图片上，设置文本颜色为白色
     draw.text(text_position, text, fill=(0, 0, 0), font=font)
+    image.save(text+".png")
 
-    return image
+    if upload_file(text+".png",text+".png"):
+        return get_file(text+".png")
+
+
+if __name__ == '__main__':
+    generate_image("北京航空航天大学")
+

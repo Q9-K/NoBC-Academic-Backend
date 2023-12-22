@@ -87,7 +87,7 @@ def get_author_by_name(request):
                 }
             }
         }
-        es_agg_res = elasticsearch_connection.search(index="author", body=agg_body)
+        es_agg_res = elasticsearch_connection.search(index=AUTHOR, body=agg_body)
         res['institutions'] = []
         for bucket in es_agg_res['aggregations']['agg_term_institution']['buckets']:
             tmp_institution = {
@@ -127,7 +127,7 @@ def get_author_by_name(request):
         else:
             pass
     # print(query_body)
-    es_query_res = elasticsearch_connection.search(index='author', body=query_body)
+    es_query_res = elasticsearch_connection.search(index=AUTHOR, body=query_body)
     res['total'] = es_query_res['hits']['total']['value']
     res['authors'] = []
     for hit in es_query_res['hits']['hits']:
@@ -205,8 +205,7 @@ def get_works(request):
     })
 
 
-# 查找指定领域的权威作者
-# （涉及全量数据，事先维护好）
+# 查找指定领域的权威作者(h-index最高的前20个作者，不分页)
 @allowed_methods(['GET'])
 def get_hot_authors(request):
     concept_id = request.GET.get('concept_id')
@@ -223,7 +222,29 @@ def get_hot_authors(request):
     # res = es_res['hits']['hits'][0]['_source']['hot_authors']
 
     # 方法二，实时算，看看速度
-    res = {}
+    query_body = {
+        "query": {
+            "nested": {
+                "path": "x_concepts",
+                "query": {
+                    "term": {
+                        "x_concepts.id": concept_id
+                    }
+                }
+            }
+        },
+        "sort": {
+            "summary_stats.h_index": {
+                "order": "desc"
+            }
+        },
+        "size": 20
+    }
+    es_res = elasticsearch_connection.search(index=AUTHOR, body=query_body)
+
+    res = []
+    for hit in es_res['hits']['hits']:
+        res.append(hit['_source'])
 
     return JsonResponse({
         'code': SUCCESS,
@@ -295,7 +316,7 @@ def get_scholar_metrics(request):
         },
         "_source": ["works_count", "cited_by_count", "summary_stats"]
     }
-    es_res = elasticsearch_connection.search(index='author', body=query_body)
+    es_res = elasticsearch_connection.search(index=AUTHOR, body=query_body)
 
     source = es_res['hits']['hits'][0]['_source']
     res = {
@@ -322,7 +343,7 @@ def get_scholar_intro_information(request):
             }
         }
     }
-    es_res = elasticsearch_connection.search(index='author', body=query_body)
+    es_res = elasticsearch_connection.search(index=AUTHOR, body=query_body)
 
     source = es_res['hits']['hits'][0]['_source']
     res = {
@@ -366,7 +387,7 @@ def post_scholar_intro_information(request):
         }
     }
     # 局部更新
-    elasticsearch_connection.update_by_query(index='author', body=update_body)
+    elasticsearch_connection.update_by_query(index=AUTHOR, body=update_body)
 
     return JsonResponse({
         'code': SUCCESS,
@@ -380,8 +401,6 @@ def post_scholar_intro_information(request):
 @allowed_methods(['POST'])
 def post_scholar_basic_information(request):
     author_id = request.POST.get('author_id')
-
-
 
     avatar = request.FILES.get('avatar')
 
@@ -411,22 +430,22 @@ def post_scholar_basic_information(request):
         },
         "script": {
             "source": "ctx._source.avatar = params.avatar; "
-                        "ctx._source.display_name = params.display_name; "
-                        "ctx._source.chinese_name = params.chinese_name; "
-                        "ctx._source.title = params.title; "
-                        "ctx._source.phone = params.phone; "
-                        "ctx._source.fax = params.fax; "
-                        "ctx._source.email = params.email; "
-                        "ctx._source.last_known_institution.display_name = params.english_affiliation; "
-                        "ctx._source.address = params.address; "
-                        "ctx._source.personal_website = params.personal_website; "
-                        "ctx._source.official_website = params.official_website; "
-                        "ctx._source.google = params.google; "
-                        "ctx._source.twitter = params.twitter; "
-                        "ctx._source.facebook = params.facebook; "
-                        "ctx._source.youtube = params.youtube; "
-                        "ctx._source.gender = params.gender; "
-                        "ctx._source.language = params.language",
+                      "ctx._source.display_name = params.display_name; "
+                      "ctx._source.chinese_name = params.chinese_name; "
+                      "ctx._source.title = params.title; "
+                      "ctx._source.phone = params.phone; "
+                      "ctx._source.fax = params.fax; "
+                      "ctx._source.email = params.email; "
+                      "ctx._source.last_known_institution.display_name = params.english_affiliation; "
+                      "ctx._source.address = params.address; "
+                      "ctx._source.personal_website = params.personal_website; "
+                      "ctx._source.official_website = params.official_website; "
+                      "ctx._source.google = params.google; "
+                      "ctx._source.twitter = params.twitter; "
+                      "ctx._source.facebook = params.facebook; "
+                      "ctx._source.youtube = params.youtube; "
+                      "ctx._source.gender = params.gender; "
+                      "ctx._source.language = params.language",
             "params": {
                 "avatar": avatar,
                 "display_name": display_name,
@@ -450,7 +469,7 @@ def post_scholar_basic_information(request):
     }
 
     # 局部更新
-    elasticsearch_connection.update_by_query(index='author', body=update_body)
+    elasticsearch_connection.update_by_query(index=AUTHOR, body=update_body)
 
     return JsonResponse({
         'code': SUCCESS,

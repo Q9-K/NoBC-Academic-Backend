@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import gzip
 import random
@@ -9,9 +10,10 @@ from elasticsearch import Elasticsearch
 from path import data_path
 from collections import deque
 
+
 connections.create_connection(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
 client = Elasticsearch(hosts=['localhost'], timeout=60, http_auth=('elastic', 'buaaNOBC2121'))
-INDEX_NAME = 'work_final'
+INDEX_NAME = 'work'
 
 
 class WorkDocument(Document):
@@ -72,7 +74,7 @@ class WorkDocument(Document):
         properties={
             "landing_page_url": Keyword(index=False),
             "pdf_url": Keyword(index=False),
-            "source": Nested(
+            "source": Object(
                 properties={
                     "id": Keyword(),
                     "display_name": Text(
@@ -234,6 +236,8 @@ def process_files(folder):
     for file in files:
         if file not in imported_files:
             run(os.path.join(folder, file))
+        else:
+            print(file + ' has been imported!')
 
 
 def save_imported_files(file_name):
@@ -257,7 +261,7 @@ if __name__ == "__main__":
     print("Start insert to ElasticSearch at {}".format(start_time))
     root_path = data_path + 'works'
     # 获取所有子文件夹
-    sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))][0:5]
+    sub_folders = [f for f in os.listdir(root_path) if os.path.isdir(os.path.join(root_path, f))]
 
     for sub_folder in sub_folders:
         folder_path = os.path.join(root_path, sub_folder)
@@ -265,4 +269,3 @@ if __name__ == "__main__":
     end_time = datetime.now()
     print("Finished insert to Elasticsearch at{}".format(end_time))
     print("cost time {}".format(end_time - start_time))
-

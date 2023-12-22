@@ -37,9 +37,9 @@ def translate(query):
 
     # Send request
     r = requests.post(url, params=payload, headers=headers)
-    json = r.json()
-    print(json)
-    result = r.json().get('trans_result')[0].get('dst')
+    raw_result = r.json()['trans_result']
+    print(raw_result)
+    result = [item['dst'] for item in raw_result]
 
 
     return result
