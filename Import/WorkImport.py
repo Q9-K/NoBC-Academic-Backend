@@ -239,7 +239,7 @@ def process_files(folder):
         if os.path.join(folder, file) not in imported_files:
             run(os.path.join(folder, file))
         else:
-            print(file + ' has been imported!')
+            print(os.path.join(folder, file) + ' has been imported!')
 
 
 def save_imported_files(file_name):
