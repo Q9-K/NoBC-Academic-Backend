@@ -87,7 +87,7 @@ class ScholarDocument(Document):
             'number_of_replicas': 0,
             'index': {
                 'mapping.nested_objects.limit': 100000,
-                'refresh_interval': -1,
+                'refresh_interval': '30s',
                 'translog': {
                     'durability': 'async',
                     'sync_interval': '30s',
@@ -106,6 +106,13 @@ def generate_actions(file_name):
                                      "works_count", "summary_stats", "last_known_institution", "x_concepts"]
             data = {key: data[key] for key in properties_to_extract}
 
+            x_concepts = []
+            for x_concept in data['x_concepts'][0:10]:
+                properties_to_extract = ["id", "wikidata", "display_name", "level", "score"]
+                x_concept = {key: x_concept[key] for key in properties_to_extract}
+                x_concepts.append(x_concept)
+            data['x_concepts'] = x_concepts
+
             properties_to_manual_set = ["user_id", "education_background", "personal_summary", "work_experience",
                                         "avatar", "chinese_name", "title", "phone", "fax", "email", "address",
                                         "personal_website", "official_website", "google", "twitter", "facebook",
@@ -113,6 +120,9 @@ def generate_actions(file_name):
 
             for key in properties_to_manual_set:
                 data[key] = None
+
+            # 设置默认头像
+            data['avatar'] = "http://nobc.buaa-q9k.xyz/default_author.png?e=1703243365&token=yMU1x7iZW8SmH14FmEP0sjoG1yflO_NJKtsoOGwk:yxy22yLr7nhjKf6hJCUf77hmFB8="
 
             document = {
                 '_index': 'author',
