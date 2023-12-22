@@ -10,7 +10,7 @@ app = Celery('NoBC')
 
 # 使用字符串，这样 worker 不必序列化
 # 配置对象到子进程。
-app.config_from_object('django.conf:settings')
+app.config_from_object('django.conf:settings', namespace='CELERY')
 app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
 # 加载任何Django应用中注册的任务模块。
 app.autodiscover_tasks()

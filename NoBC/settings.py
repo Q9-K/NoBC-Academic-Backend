@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/4.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
-
+from datetime import timedelta
 from pathlib import Path
 
 from celery.schedules import crontab
@@ -176,7 +176,7 @@ CACHES = {
     }
 }
 
-CELERY_BROKER_URL = 'redis://123.60.99.8:6379/1'
+CELERY_BROKER_URL = 'amqp://rabbit:123456@localhost:5672/'
 CELERY_RESULT_BACKEND = 'redis://123.60.99.8:6379/2'
 # CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
@@ -190,8 +190,8 @@ connections.configure(
     }
 )
 CELERY_BEAT_SCHEDULE = {
-    'task-update-es-every-10-minutes': {
+    'task-update-es-every-3-seconds': {
         'task': 'work.tasks.update_es',
-        'schedule': crontab(minute='*/10'),
+        'schedule': timedelta(seconds=3),
     },
 }
