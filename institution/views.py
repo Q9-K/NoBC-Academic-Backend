@@ -56,8 +56,7 @@ def get_return_data(search: Search, data_name: str, key_list: [], deeper_name_li
             for key in key_list:
                 dic[key] = origin_data[key]
                 if origin_data[key] is None and key == 'image_url':
-                    dic[
-                        key] = 'http://nobc.buaa-q9k.xyz/default_institution.png?e=1734783247&token=yMU1x7iZW8SmH14FmEP0sjoG1yflO_NJKtsoOGwk:J5FtwKmo6-5TeSMdTmUVBCec87s='
+                    dic[key] = 'http://nobc.buaa-q9k.xyz/default_institution.png?e=1734783247&token=yMU1x7iZW8SmH14FmEP0sjoG1yflO_NJKtsoOGwk:J5FtwKmo6-5TeSMdTmUVBCec87s='
             if deeper_name_list:
                 # 遍历需要深一层获取的名字
                 for key in deeper_name_list.keys():
@@ -144,12 +143,14 @@ def getInstitutionByKeyword(request):
         # 每页大小size,上一页最后一个数据的sort字段(若为"",默认为第一页)
         keyword = request.GET.get('keyword', '')
         # 默认id升序
-        # 正则表达式匹配
-        query_body = (Q('regexp', display_name={'value': '.*' + keyword + '.*', 'flags': 'ALL'}) |
-                      Q('regexp', chinese_display_name={'value': '.*' + keyword + '.*', 'flags': 'ALL'}))
-        # 加上模糊搜索,fuzziness为容错率,默认为AUTO,
-        query_body = (query_body |
-                      Q('match', display_name={'query': keyword, 'fuzziness': 'AUTO'}) |
+        # # 正则表达式匹配
+        # query_body = (Q('regexp', display_name={'value': '.*' + keyword + '.*', 'flags': 'ALL'}) |
+        #               Q('regexp', chinese_display_name={'value': '.*' + keyword + '.*', 'flags': 'ALL'}))
+        # # 加上模糊搜索,fuzziness为容错率,默认为AUTO,
+        # query_body = (query_body |
+        #               Q('match', display_name={'query': keyword, 'fuzziness': 'AUTO'}) |
+        #               Q('match', chinese_display_name={'query': keyword, 'fuzziness': 'AUTO'}))
+        query_body = (Q('match', display_name={'query': keyword, 'fuzziness': 'AUTO'}) |
                       Q('match', chinese_display_name={'query': keyword, 'fuzziness': 'AUTO'}))
         search = Search(using=ES_CONN, index='institution').query(query_body).sort('id')
         pagination_search = pagination(search, request)

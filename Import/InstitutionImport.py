@@ -102,7 +102,7 @@ def run(client, file_name):
             properties_to_extract = ["id", "cited_by_count", "display_name", "homepage_url", "lineage",
                                      "ror", "type",
                                      "works_api_url", "works_count", "associated_institutions", "counts_by_year", "geo",
-                                     "summary_stats"]
+                                     "summary_stats", 'image_url']
             data = {key: origin_data.get(key) for key in properties_to_extract}
             international = origin_data.get('international', None)
             data['chinese_display_name'] = ''
