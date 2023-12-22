@@ -136,7 +136,7 @@ def generate_actions(file_name):
             authorships = []
             for authorship in data['authorships'][0:10]:
                 properties_to_extract = ["author", "institutions", "countries"]
-                authorship = {key: authorship[key] for key in properties_to_extract}
+                authorship = {key: authorship[key] for key in properties_to_extract if key in properties_to_extract}
                 authorship["author"] = {
                     "id": authorship["author"]["id"][len('https://openalex.org/'):] if authorship["author"].get(
                         'id') else None,
@@ -151,7 +151,7 @@ def generate_actions(file_name):
                     }
                     institutions.append(institution)
                 authorship["institutions"] = institutions
-                authorship["country"] = authorship["countries"][0] if authorship["countries"] else None
+                authorship["country"] = authorship["countries"][0] if authorship.get("countries") else None
                 authorship.pop("countries")
                 authorships.append(authorship)
             data["authorships"] = authorships
