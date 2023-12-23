@@ -244,6 +244,55 @@ def get_concept_by_id(request):
 
     return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
 
+@allowed_methods(['GET'])
+def get_ancestor_concepts(request):
+    id = request.GET.get('id')
+    query = {
+        "query": {
+            "term": {
+                "id": id
+            }
+        },
+        "_source": ["id", "ancestors"],
+        "size": 1
+    }
+
+    response = client.search(index="concept", body=query)
+    results = []
+    for hit in response['hits']['hits']:
+        source_data = hit['_source']
+        document_id = hit['_id']
+
+        # 收集需要翻译的 display_name
+        to_translate = []
+        translate_mapping = []  # 存储需要翻译的对象引用和字段名称
+
+        for field in ['ancestors']:
+            if field in source_data:
+                for item in source_data[field]:
+                    if 'chinese_display_name' not in item or item['chinese_display_name'] == '':
+                        to_translate.append(item['display_name'])
+                        translate_mapping.append((item, 'chinese_display_name'))
+
+        # 进行翻译
+        if to_translate:
+            translated = translate("\n".join(to_translate))
+
+            # 将翻译结果更新回对应的字段
+            for part, (obj, field) in zip(translated, translate_mapping):
+                obj[field] = part
+
+            # 更新 Elasticsearch 文档
+            update_body = {"doc": source_data}
+            client.update(index="concept", id=document_id, body=update_body)
+
+        results.append(source_data)
+
+    return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
+
+
+
+
 
 @allowed_methods(['GET'])
 def get_hot_concepts(request):

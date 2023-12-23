@@ -17,7 +17,7 @@ client = Elasticsearch(hosts=['localhost'], timeout=60, http_auth=('elastic', 'b
 class InstitutionDocument(Document):
     id = Keyword()
     cited_by_count = Integer()
-    display_name = Text(analyzer='my_edge_ngram_analyzer', search_analyzer='my_edge_ngram_analyzer')
+    display_name = Text(analyzer='english', search_analyzer='english')
     homepage_url = Keyword(index=False)
     image_url = Keyword(index=False)
     lineage = Keyword(index=False)
@@ -99,10 +99,10 @@ def run(client, file_name):
         start_time = time.perf_counter()
         for line in file:
             origin_data = json.loads(line)
-            properties_to_extract = ["id", "cited_by_count", "display_name", "homepage_url", "image_url", "lineage",
+            properties_to_extract = ["id", "cited_by_count", "display_name", "homepage_url", "lineage",
                                      "ror", "type",
                                      "works_api_url", "works_count", "associated_institutions", "counts_by_year", "geo",
-                                     "summary_stats"]
+                                     "summary_stats", 'image_url']
             data = {key: origin_data.get(key) for key in properties_to_extract}
             international = origin_data.get('international', None)
             data['chinese_display_name'] = ''

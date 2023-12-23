@@ -9,6 +9,7 @@ INSTITUTION = 'institution'
 SOURCE = 'source'
 WORK = 'work_final'
 
+
 # 根据id获取作者的所有作品，不分页就获取全部
 def es_get_works(author_id, page_num=-1, page_size=-1):
     query_body = {

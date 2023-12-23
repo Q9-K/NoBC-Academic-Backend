@@ -1,5 +1,7 @@
 import requests
 import json
+
+
 def get_scholar_avatar(name,school):
     # 定义 URL 和 POST 数据
     url = 'https://searchtest.aminer.cn/aminer-search/search/person'
@@ -26,3 +28,20 @@ def get_scholar_avatar(name,school):
     else:
         avatar_url = None
     return avatar_url
+
+
+if __name__ == '__main__':
+    # 读取h-index>20的学者列表
+    with open('scholar_list.json', 'r', encoding='utf-8') as f:
+        scholar_list = json.load(f)
+        avatar_list = []
+        for scholar in scholar_list:
+            if get_scholar_avatar(scholar['display_name'],scholar['last_known_institution']['display_name']) is not None:
+                pass
+            else:
+                avatar_list.append("默认头像的url")
+
+    # bulk_update到es中
+
+
+

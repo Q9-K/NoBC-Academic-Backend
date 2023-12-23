@@ -103,16 +103,18 @@ def generate_actions(file_name):
         for line in lines:
             data = json.loads(line)
             properties_to_extract = ["id", "cited_by_count", "counts_by_year", "display_name",
-                                     "works_count", "summary_stats", "last_known_institution"]
+                                     "works_count", "summary_stats", "last_known_institution", "x_concepts"]
             data = {key: data[key] for key in properties_to_extract}
 
-            if len(data['x_concepts']) > 10:
-                data['x_concepts'] = data['x_concepts'][:10]
-            else:
-                data['x_concepts'] = data['x_concepts']
+            x_concepts = []
+            for x_concept in data['x_concepts'][0:10]:
+                properties_to_extract = ["id", "wikidata", "display_name", "level", "score"]
+                x_concept = {key: x_concept[key] for key in properties_to_extract}
+                x_concepts.append(x_concept)
+            data['x_concepts'] = x_concepts
 
             properties_to_manual_set = ["user_id", "education_background", "personal_summary", "work_experience",
-                                        "chinese_name", "title", "phone", "fax", "email", "address",
+                                        "avatar", "chinese_name", "title", "phone", "fax", "email", "address",
                                         "personal_website", "official_website", "google", "twitter", "facebook",
                                         "youtube", "gender", "language"]
 
@@ -120,7 +122,7 @@ def generate_actions(file_name):
                 data[key] = None
 
             # 设置默认头像
-            data['avatar'] = "http://nobc.buaa-q9k.xyz/default_author.png?e=1703243365&token=yMU1x7iZW8SmH14FmEP0sjoG1yflO_NJKtsoOGwk:yxy22yLr7nhjKf6hJCUf77hmFB8="
+            # data['avatar'] = "http://nobc.buaa-q9k.xyz/default_author.png?e=1703243365&token=yMU1x7iZW8SmH14FmEP0sjoG1yflO_NJKtsoOGwk:yxy22yLr7nhjKf6hJCUf77hmFB8="
 
             document = {
                 '_index': 'author',
