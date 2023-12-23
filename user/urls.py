@@ -29,7 +29,6 @@ urlpatterns = [
     path('apply_for_complaint/', apply_for_complaint),
     path('get_messages_all/', get_messages_all),
     path('check_author_authentication/', check_author_authentication),
+    path('read_message/', read_message),
     path('test/', test),
-
-    path('test_socket/', send_message),
 ]

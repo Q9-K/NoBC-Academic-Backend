@@ -1,13 +1,19 @@
 from channels.generic.websocket import AsyncWebsocketConsumer
 import json
 
-class ChatConsumer(AsyncWebsocketConsumer):
-    async def connect(self):
-        user_id=self.scope['url_route']['kwargs']['user_id']
-        self.user = user_id
-        self.room_name = f'user_{user_id}'
 
-        # 加入房间分组
+class ChatConsumer(AsyncWebsocketConsumer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(args, kwargs)
+        self.user = None
+        self.room_name = None
+
+    async def connect(self):
+        user_email = self.scope['url_route']['kwargs']['user_email']
+        self.user = user_email
+        self.room_name = f'user_{user_email}'
+
+        # 加入房间分组,一个用户一个组
         await self.channel_layer.group_add(
             self.room_name,
             self.channel_name
@@ -38,9 +44,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     # 从分组接收消息
     async def send_message(self, event):
-
         message = event['message']
-
         # 发送消息到 WebSocket
         await self.send(text_data=json.dumps({
             'message': message

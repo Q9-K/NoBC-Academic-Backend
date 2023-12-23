@@ -3,8 +3,6 @@ import random
 import re
 from datetime import datetime
 
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
 from django.core.mail import send_mail
 from elasticsearch_dsl import connections, Search
 
@@ -12,7 +10,7 @@ from NoBC.status_code import *
 from author.models import Author
 from concept.models import Concept
 from config import BUAA_MAIL_USER, ELAS_HOST, ELAS_USER, ELAS_PASSWORD
-from message.models import Certification, Complaint
+from message.models import Certification, Complaint, Message
 from utils.Md5 import create_md5, create_salt
 from utils.Response import response
 from utils.Token import generate_token
@@ -775,22 +773,20 @@ def check_author_authentication(request):
     else:
         return response('字段不能为空', error=True)
 
-def send_message(request):
-    """
-        websocket 示例
-    """
-    user_id = request.GET.get('user_id')
-    message = request.GET.get('message')
 
-    channel_layer = get_channel_layer()
-    room_name = f'user_{user_id}'
-
-    # 异步方式发送消息
-    async_to_sync(channel_layer.group_send)(
-        room_name,
-        {
-            'type': 'send_message',
-            'message': message
-        }
-    )
-    return response('发送成功', data=message)
+@allowed_methods(['POST'])
+@login_required
+def read_message(request):
+    user = request.user
+    message_id = request.POST.get('message_id', None)
+    if message_id:
+        # 将消息改为已读
+        try:
+            message = Message.objects.get(id=message_id, status=Message.UNREAD)
+            message.status = Message.READ
+            message.save()
+            return response(SUCCESS, '消息已读')
+        except Message.DoesNotExist:
+            return response(MYSQL_ERROR, '消息已读或不存在', error=True)
+    else:
+        return response(PARAMS_ERROR, '字段不能为空', error=True)
