@@ -42,16 +42,16 @@ def login(request):
             return response(PARAMS_ERROR, '用户名或密码错误！', error=True)
 
 
-def get_certification_data(certification: Certification, default_author_avatar: str):
-    dic = certification.to_string()
-    dic['author_name'] = get_author_name(certification.author_id)
+def get_message_data(dic: dict, user_avatar_key, author_id: str, default_author_avatar: str):
     # 加上用户和学者头像
-    dic['user_avatar'] = get_file(certification.user.avatar_key)
-    search = Search(using=ES_CONN, index=ES_NAME).query('term', id=certification.author.id)
+    dic['user_avatar'] = get_file(user_avatar_key)
+    search = Search(using=ES_CONN, index=ES_NAME).query('term', id=author_id)
     ret = search.execute().to_dict()['hits']['hits']
     if len(ret) == 0:
         dic['author_avatar'] = ''
+        dic['author_name'] = ''
     else:
+        dic['author_name'] = ret[0]['_source']['display_name']
         author_avatar_key = ret[0]['_source']['avatar']
         if author_avatar_key:
             dic['author_avatar'] = get_file(author_avatar_key)
@@ -74,7 +74,10 @@ def get_certifications_pending(request):
     if default_author_avatar == '':
         return response(MYSQL_ERROR, '获取头像失败', error=True)
     for certification in certifications:
-        certification_data = get_certification_data(certification, default_author_avatar)
+        dic = certification.to_string()
+        user_avatar_key = certification.user.avatar_key
+        author_id = certification.author.id
+        certification_data = get_message_data(dic, user_avatar_key, author_id, default_author_avatar)
         if certification_data:
             data.append(certification_data)
         else:
@@ -96,7 +99,10 @@ def get_certifications_all(request):
     if default_author_avatar == '':
         return response(MYSQL_ERROR, '获取头像失败', error=True)
     for certification in certifications:
-        certification_data = get_certification_data(certification, default_author_avatar)
+        dic = certification.to_string()
+        user_avatar_key = certification.user.avatar_key
+        author_id = certification.author.id
+        certification_data = get_message_data(dic, user_avatar_key, author_id, default_author_avatar)
         if certification_data:
             data.append(certification_data)
         else:
@@ -157,11 +163,16 @@ def get_complaints_pending(request):
     :param request: token
     :return: [code, msg, data, error] data为需要审核的投诉列表
     """
+    default_author_avatar = get_file('default_author.png')
+    if default_author_avatar == '':
+        return response(MYSQL_ERROR, '获取头像失败', error=True)
     complaints = Complaint.objects.filter(status=Complaint.PENDING)
     data = []
     for complaint in complaints:
         dic = complaint.to_string()
-        dic['author_name'] = get_author_name(complaint.to_author_id)
+        author_id = complaint.to_author.id
+        user_avatar_key = complaint.user.avatar_key
+        get_message_data(dic, user_avatar_key, author_id, default_author_avatar)
         data.append(dic)
     return response(SUCCESS, '获取需要审核的投诉记录成功！', data=data)
 
@@ -176,9 +187,14 @@ def get_complaints_all(request):
     """
     complaints = Complaint.objects.all()
     data = []
+    default_author_avatar = get_file('default_author.png')
+    if default_author_avatar == '':
+        return response(MYSQL_ERROR, '获取头像失败', error=True)
     for complaint in complaints:
         dic = complaint.to_string()
-        dic['author_name'] = get_author_name(complaint.to_author_id)
+        author_id = complaint.to_author.id
+        user_avatar_key = complaint.user.avatar_key
+        get_message_data(dic, user_avatar_key, author_id, default_author_avatar)
         data.append(dic)
     return response(SUCCESS, '获取全部的投诉记录成功！', data=data)
 
@@ -244,9 +260,14 @@ def check_complaint(request):
             if status_code == '1':
                 complaint.status = Complaint.PASSED
                 # 投诉通过,取消该学者的认证
-                to_user = User.objects.get(scholar_identity=complaint.to_author)
-                to_user.scholar_identity = None
-                to_user.save()
+                try:
+                    to_user = User.objects.get(scholar_identity=complaint.to_author)
+                    to_user.scholar_identity = None
+                    to_user.save()
+                # 没有认证这个学者的用户,直接成功
+                except User.DoesNotExist:
+                    complaint.save()
+                    return response('审核成功')
                 # 给被投诉的学者发消息
                 title = '你的学者认证已被取消'
                 content = '你的学者认证已被取消，原因：' + opinion
@@ -341,7 +362,7 @@ def get_user_info_by_email(request):
         if email:
             return response('获取用户信息成功', data=user.to_string())
         else:
-            return response(MYSQL_ERROR,'用户不存在', error=True)
+            return response(MYSQL_ERROR, '用户不存在', error=True)
     else:
         return response(PARAMS_ERROR, '字段不能为空', error=True)
 
@@ -363,10 +384,10 @@ def get_user_avatar_by_email(request):
                 if ret != '':
                     return response('获取用户头像成功', data=ret)
                 else:
-                    return response(MYSQL_ERROR,'获取用户头像失败', error=True)
+                    return response(MYSQL_ERROR, '获取用户头像失败', error=True)
             else:
-                return response(MYSQL_ERROR,'获取用户头像失败', error=True)
+                return response(MYSQL_ERROR, '获取用户头像失败', error=True)
         else:
-            return response(MYSQL_ERROR,'用户不存在', error=True)
+            return response(MYSQL_ERROR, '用户不存在', error=True)
     else:
-        return response(PARAMS_ERROR,'字段不能为空', error=True)
+        return response(PARAMS_ERROR, '字段不能为空', error=True)

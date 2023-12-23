@@ -103,9 +103,11 @@ def get_user_avatar(request):
 
 @allowed_methods(['POST'])
 def test(request):
-    key = '1.png'
-    url = get_file(key)
-    return response(data=url)
+    user = User.objects.get(email='326855092@qq.com')
+    key = init_user_avatar(user)
+    user.avatar_key = key
+    user.save()
+    return response(data=None)
 
 
 def send_email(email) -> int:
