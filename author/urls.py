@@ -10,4 +10,5 @@ urlpatterns = [
     path('post_scholar_intro_information/', post_scholar_intro_information),
     path('get_scholar_intro_information/', get_scholar_intro_information),
     path('post_scholar_basic_information/', post_scholar_basic_information),
+    path('get_counts_by_year/', get_counts_by_year)
 ]

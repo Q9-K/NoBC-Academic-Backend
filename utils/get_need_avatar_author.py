@@ -1,7 +1,7 @@
-# 获取h-index>20的学者列表，结果输出到scholar_list.json
 from elasticsearch_dsl.connections import connections
+from config import *
 
-elasticsearch_connection = connections.get_connection()
+es = connections.create_connection(hosts=[ELAS_HOST], timeout=60, http_auth=(ELAS_USER, ELAS_PASSWORD))
 
 # 从es中获取h-index>20的学者列表
 query_body = {
@@ -20,6 +20,14 @@ query_body = {
     }
 }
 
-for i in range(0, 10000, 100):
-    es_res = elasticsearch_connection.search(index='author', body=query_body)
-    pass
+# 深度分页
+scroll = es.search(
+    index="author",
+    scroll="1m",
+    size=100,
+    body=query_body
+)
+
+# 获取总数
+total = scroll["hits"]["total"]
+print("total: ", total)
