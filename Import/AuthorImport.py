@@ -122,7 +122,7 @@ def generate_actions(file_name):
                 data[key] = None
 
             # 设置默认头像
-            data['avatar'] = "http://nobc.buaa-q9k.xyz/default_author.png?e=1703243365&token=yMU1x7iZW8SmH14FmEP0sjoG1yflO_NJKtsoOGwk:yxy22yLr7nhjKf6hJCUf77hmFB8="
+            # data['avatar'] = "http://nobc.buaa-q9k.xyz/default_author.png?e=1703243365&token=yMU1x7iZW8SmH14FmEP0sjoG1yflO_NJKtsoOGwk:yxy22yLr7nhjKf6hJCUf77hmFB8="
 
             document = {
                 '_index': 'author',
