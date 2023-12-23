@@ -42,6 +42,24 @@ def login(request):
             return response(PARAMS_ERROR, '用户名或密码错误！', error=True)
 
 
+def get_certification_data(certification: Certification, default_author_avatar: str):
+    dic = certification.to_string()
+    dic['author_name'] = get_author_name(certification.author_id)
+    # 加上用户和学者头像
+    dic['user_avatar'] = get_file(certification.user.avatar_key)
+    search = Search(using=ES_CONN, index=ES_NAME).query('term', id=certification.author.id)
+    ret = search.execute().to_dict()['hits']['hits']
+    if len(ret) == 0:
+        dic['author_avatar'] = ''
+    else:
+        author_avatar_key = ret[0]['_source']['avatar']
+        if author_avatar_key:
+            dic['author_avatar'] = get_file(author_avatar_key)
+        else:
+            dic['author_avatar'] = default_author_avatar
+    return dic
+
+
 @allowed_methods(['GET'])
 @manager_login_required
 def get_certifications_pending(request):
@@ -52,10 +70,15 @@ def get_certifications_pending(request):
     """
     certifications = Certification.objects.filter(status=Certification.PENDING)
     data = []
+    default_author_avatar = get_file('default_author.png')
+    if default_author_avatar == '':
+        return response(MYSQL_ERROR, '获取头像失败', error=True)
     for certification in certifications:
-        dic = certification.to_string()
-        dic['author_name'] = get_author_name(certification.author_id)
-        data.append(dic)
+        certification_data = get_certification_data(certification, default_author_avatar)
+        if certification_data:
+            data.append(certification_data)
+        else:
+            return response(MYSQL_ERROR, '获取需要审核的认证记录失败', error=True)
     return response(SUCCESS, '获取需要审核的认证记录成功！', data=data)
 
 
@@ -69,10 +92,15 @@ def get_certifications_all(request):
     """
     certifications = Certification.objects.all()
     data = []
+    default_author_avatar = get_file('default_author.png')
+    if default_author_avatar == '':
+        return response(MYSQL_ERROR, '获取头像失败', error=True)
     for certification in certifications:
-        dic = certification.to_string()
-        dic['author_name'] = get_author_name(certification.author_id)
-        data.append(dic)
+        certification_data = get_certification_data(certification, default_author_avatar)
+        if certification_data:
+            data.append(certification_data)
+        else:
+            return response(MYSQL_ERROR, '获取所有的认证记录失败', error=True)
     return response(SUCCESS, '获取所有的认证记录成功！', data=data)
 
 
@@ -289,3 +317,56 @@ def get_author_name(author_id):
         return '未知'
     else:
         return ret[0]['_source']['display_name']
+
+
+def get_user_by_email(email):
+    try:
+        user = User.objects.get(email=email)
+        return user
+    except User.DoesNotExist:
+        return None
+
+
+@allowed_methods(['GET'])
+@manager_login_required
+def get_user_info_by_email(request):
+    """
+    通过邮箱获取用户信息
+    :param request: token, email
+    :return: 用户信息
+    """
+    email = request.GET.get('user_email', None)
+    if email:
+        user = get_user_by_email(email)
+        if email:
+            return response('获取用户信息成功', data=user.to_string())
+        else:
+            return response(MYSQL_ERROR,'用户不存在', error=True)
+    else:
+        return response(PARAMS_ERROR, '字段不能为空', error=True)
+
+
+@allowed_methods(['GET'])
+@manager_login_required
+def get_user_avatar_by_email(request):
+    """
+    获取用户头像
+    :param request: token
+    :return: [code, msg, data, error], 其中data为头像url
+    """
+    email = request.GET.get('user_email', None)
+    if email:
+        user = get_user_by_email(email)
+        if user:
+            if user.avatar_key != '':
+                ret = get_file(user.avatar_key)
+                if ret != '':
+                    return response('获取用户头像成功', data=ret)
+                else:
+                    return response(MYSQL_ERROR,'获取用户头像失败', error=True)
+            else:
+                return response(MYSQL_ERROR,'获取用户头像失败', error=True)
+        else:
+            return response(MYSQL_ERROR,'用户不存在', error=True)
+    else:
+        return response(PARAMS_ERROR,'字段不能为空', error=True)
