@@ -3,6 +3,8 @@ import random
 import re
 from datetime import datetime
 
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.core.mail import send_mail
 from elasticsearch_dsl import connections, Search
 
@@ -765,3 +767,23 @@ def check_author_authentication(request):
         return response('获取学者认证状态成功', data=data)
     else:
         return response('字段不能为空', error=True)
+
+def send_message(request):
+    """
+        websocket 示例
+    """
+    user_id = request.GET.get('user_id')
+    message = request.GET.get('message')
+
+    channel_layer = get_channel_layer()
+    room_name = f'user_{user_id}'
+
+    # 异步方式发送消息
+    async_to_sync(channel_layer.group_send)(
+        room_name,
+        {
+            'type': 'send_message',
+            'message': message
+        }
+    )
+    return response('发送成功', data=message)

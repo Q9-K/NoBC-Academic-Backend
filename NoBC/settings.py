@@ -96,6 +96,16 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "NoBC.wsgi.application"
+ASGI_APPLICATION = 'NoBC.routing.application'
+
+CHANNEL_LAYERS = {
+    "default": {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('123.60.99.8', 6379)],
+        },
+    },
+}
 
 DATABASES = {
     "default": {
@@ -108,6 +118,7 @@ DATABASES = {
     }
 }
 INSTALLED_APPS = [
+    "daphne",
     "corsheaders",
     "django.contrib.admin",
     "django.contrib.auth",
@@ -124,6 +135,7 @@ INSTALLED_APPS = [
     'institution',
     'source',
     'concept',
+    'channels',
 ]
 
 # Password validation

@@ -30,4 +30,6 @@ urlpatterns = [
     path('get_messages_all/', get_messages_all),
     path('check_author_authentication/', check_author_authentication),
     path('test/', test),
+
+    path('test_socket/', send_message),
 ]

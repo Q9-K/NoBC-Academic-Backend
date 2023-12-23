@@ -7,12 +7,13 @@ from elasticsearch import Elasticsearch
 from elasticsearch_dsl import Search, Q
 from elasticsearch_dsl.connections import connections
 
+from concept.models import Concept
 from user.models import User
 from NoBC.status_code import *
 from utils.generate_image import generate_image
 from utils.view_decorator import allowed_methods, login_required
 from utils.translate import translate
-from utils.qos import upload_file,get_file
+from utils.qos import upload_file, get_file
 
 # Create your views here.
 
@@ -29,7 +30,7 @@ def get_level_0(request):
     # 添加过滤条件
     s = s.filter("term", level=0)
 
-    s = s.source(['id', 'display_name', 'chinese_display_name','level'])
+    s = s.source(['id', 'display_name', 'chinese_display_name', 'level'])
 
     s = s[0:100]  # 获取前100个结果
     # 执行搜索
@@ -103,7 +104,6 @@ def get_subdomains(request):
             update_body = {"doc": source_data}
             client.update(index="concept", id=document_id, body=update_body)
 
-
     return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
 
 
@@ -170,7 +170,6 @@ def search_concept_by_keyword(request):
     if len(to_translate) > 0:
         translated = translate("\n".join(to_translate))  # 假设 translate 函数可以处理这个字符串
 
-
         # 更新 Elasticsearch 并更新返回数据
         for i, document_id in enumerate(ids_to_update):
             translated_name = translated[i] if i < len(translated) else None
@@ -188,6 +187,9 @@ def search_concept_by_keyword(request):
 @allowed_methods(['GET'])
 def get_concept_by_id(request):
     id = request.GET.get('id')
+    if cache.get(id):
+        print('cache hit')
+        return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': cache.get(id)})
     query = {
         "query": {
             "term": {
@@ -201,7 +203,7 @@ def get_concept_by_id(request):
     }
 
     response = client.search(index="concept", body=query)
-    results =[]
+    results = []
     for hit in response['hits']['hits']:
         source_data = hit['_source']
         document_id = hit['_id']
@@ -237,7 +239,6 @@ def get_concept_by_id(request):
         if to_translate:
             translated = translate("\n".join(to_translate))
 
-
             # 将翻译结果更新回对应的字段
             for part, (obj, field) in zip(translated, translate_mapping):
                 obj[field] = part
@@ -247,8 +248,9 @@ def get_concept_by_id(request):
             client.update(index="concept", id=document_id, body=update_body)
 
         results.append(source_data)
-
+    cache.set(id, results, timeout=60 * 60 * 30)
     return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
+
 
 @allowed_methods(['GET'])
 def get_ancestor_concepts(request):
@@ -297,9 +299,6 @@ def get_ancestor_concepts(request):
     return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
 
 
-
-
-
 @allowed_methods(['GET'])
 def get_hot_concepts(request):
     query = {
@@ -337,7 +336,6 @@ def get_hot_concepts(request):
     if to_translate:
         translated = translate("\n".join(to_translate))
 
-
         # 分配翻译结果并更新 Elasticsearch
         for i, document_id in enumerate(ids_to_update):
             if i < len(translated):
@@ -348,7 +346,6 @@ def get_hot_concepts(request):
                 for result in results:
                     if result['id'] == document_id:
                         result['chinese_display_name'] = translated[i]
-
 
     return JsonResponse({'code': SUCCESS, 'msg': 'no error', 'data': results})
 
@@ -384,26 +381,29 @@ def search_works_by_concept(request):
 @login_required
 def get_works_with_followed_concepts(request):
     user = request.user
-    # User.objects.filter(id=user.id
-
-    # 构建查询
-    query = {
-        "query": {
-            "nested": {
-                "path": "concepts",
-                "query": {
-                    "bool": {
-                        "must": [
-                            {"terms": {"concepts.id": followed_concepts}}
-                        ]
+    user: User
+    concept_foucus = user.concept_focus.all()
+    results=[]
+    for concept in concept_foucus:
+        concept: Concept
+        print(concept.id)
+        # 构建查询
+        query = {
+            "query": {
+                "nested": {
+                    "path": "concepts",
+                    "query": {
+                        "bool": {
+                            "must": [
+                                {"term": {"id": id}}
+                            ]
+                        }
                     }
                 }
             }
         }
-    }
-
-    # 执行搜索
-    response = client.search(index="work", body=query)
+        # 执行搜索
+        response = client.search(index="work", body=query)
 
     # 处理结果
     results = [hit["_source"] for hit in response['hits']['hits']]
