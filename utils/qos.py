@@ -39,9 +39,15 @@ def get_file(key: str) -> str:
     :param key: 文件名
     :return: url
     """
+    # 检查是否存在
     q = Auth(ACCESS_KEY, SECRET_KEY)
-    join_url = BASE_URL + key
-    return q.private_download_url(join_url, expires=3600*24*365)
+    bucket = BucketManager(q)
+    ret, info = bucket.stat(BUCKET_NAME, key)
+    if not ret:
+        return ''
+    # 生成下载链接
+    url = BASE_URL + key
+    return q.private_download_url(url, expires=3600)
 
 
 def delete_file(key: str) -> bool:
@@ -60,5 +66,6 @@ def delete_file(key: str) -> bool:
         return False
 
 
-
-
+if __name__ == '__main__':
+    # upload_file("default_institution.png", "./default_institution.png")
+    print(get_file("语境（考古学）.png"))

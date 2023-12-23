@@ -1,8 +1,12 @@
 import json
+import os
 
 from django.http import JsonResponse
 from author.models import Author
-from utils.view_decorator import allowed_methods
+from user.views import save_file
+from utils.Response import response
+from utils.qos import delete_file, upload_file, get_file
+from utils.view_decorator import allowed_methods, login_required
 from NoBC.status_code import *
 from author.es import *
 
@@ -130,8 +134,16 @@ def get_author_by_name(request):
     es_query_res = elasticsearch_connection.search(index=AUTHOR, body=query_body)
     res['total'] = es_query_res['hits']['total']['value']
     res['authors'] = []
+
+    # 临时链接
+    default_author_avatar = get_file('default_author.png')
+
     for hit in es_query_res['hits']['hits']:
-        res['authors'].append(hit['_source'])
+        tmp_author = hit['_source']
+        if tmp_author['avatar'] is None:
+            tmp_author['avatar'] = default_author_avatar
+        else:
+            tmp_author['avatar'] = get_file(tmp_author['avatar'])
 
     return JsonResponse({
         'code': SUCCESS,
@@ -171,8 +183,36 @@ def get_author_by_id(request):
             'gender': source['gender'],
             'language': source['language']
         }
+
+        if res['avatar'] is None:
+            # print('avatar is None')
+            res['avatar'] = get_file('default_author.png')
+        else:
+            res['avatar'] = get_file(res['avatar'])
     else:
         res = {}
+
+    return JsonResponse({
+        'code': SUCCESS,
+        'error': False,
+        'message': 'success',
+        'data': res
+    })
+
+
+# 获取作者近几年数据
+@allowed_methods(['GET'])
+def get_counts_by_year(request):
+    author_id = request.GET.get('author_id')
+    es_res = es_get_author_by_id(author_id)
+
+    res = []
+    source = es_res['hits']['hits'][0]['_source']
+    for year in source['counts_by_year']:
+        res.append({
+            'type': year['year'],
+            'papers': year['works_count']
+        })
 
     return JsonResponse({
         'code': SUCCESS,
@@ -243,8 +283,13 @@ def get_hot_authors(request):
     es_res = elasticsearch_connection.search(index=AUTHOR, body=query_body)
 
     res = []
+    default_author_avatar = get_file('default_author.png')
     for hit in es_res['hits']['hits']:
-        res.append(hit['_source'])
+        tmp_author = hit['_source']
+        if tmp_author['avatar'] is None:
+            tmp_author['avatar'] = default_author_avatar
+        else:
+            tmp_author['avatar'] = get_file(tmp_author['avatar'])
 
     return JsonResponse({
         'code': SUCCESS,
@@ -267,6 +312,8 @@ def get_co_author_list(request):
     res_id = []
     # 关联作者的具体信息
     res = []
+    # 默认头像
+    default_author_avatar = get_file('default_author.png')
 
     for work in works['hits']['hits']:
         if len(res) >= 10:
@@ -287,7 +334,10 @@ def get_co_author_list(request):
                 tmp_author = es_get_author_by_id(author_ship['author']['id'])
                 # 这里应该是都能搜得到的，除非数据导入不完整
                 tmp_author_source = tmp_author['hits']['hits'][0]['_source']
-                tmp_dic['avatar'] = tmp_author_source['avatar']
+                if tmp_author_source['avatar'] is None:
+                    tmp_dic['avatar'] = default_author_avatar
+                else:
+                    tmp_dic['avatar'] = get_file(tmp_author_source['avatar'])
                 tmp_dic['paperCount'] = tmp_author_source['works_count']
                 tmp_dic['ScholarId'] = author_ship['author']['id']
                 res.append(tmp_dic)
@@ -362,6 +412,7 @@ def get_scholar_intro_information(request):
 
 # 上传学者简介信息
 @allowed_methods(['POST'])
+@login_required
 def post_scholar_intro_information(request):
     author_id = request.POST.get('author_id')
     work_experience = request.POST.get('workExperience')
@@ -397,12 +448,11 @@ def post_scholar_intro_information(request):
     })
 
 
-# 上传学者基本信息（涉及到头像文件处理
+# 上传学者基本信息
 @allowed_methods(['POST'])
+@login_required
 def post_scholar_basic_information(request):
     author_id = request.POST.get('author_id')
-
-    avatar = request.FILES.get('avatar')
 
     display_name = request.POST.get('name')
     chinese_name = request.POST.get('chineseName')
@@ -429,8 +479,7 @@ def post_scholar_basic_information(request):
             }
         },
         "script": {
-            "source": "ctx._source.avatar = params.avatar; "
-                      "ctx._source.display_name = params.display_name; "
+            "source": "ctx._source.display_name = params.display_name; "
                       "ctx._source.chinese_name = params.chinese_name; "
                       "ctx._source.title = params.title; "
                       "ctx._source.phone = params.phone; "
@@ -447,7 +496,6 @@ def post_scholar_basic_information(request):
                       "ctx._source.gender = params.gender; "
                       "ctx._source.language = params.language",
             "params": {
-                "avatar": avatar,
                 "display_name": display_name,
                 "chinese_name": chinese_name,
                 "title": title,
@@ -477,3 +525,50 @@ def post_scholar_basic_information(request):
         'msg': 'success',
         'data': {}
     })
+
+
+# 上传学者头像
+@allowed_methods(['POST'])
+# @login_required
+def post_scholar_avatar(request):
+    author_id = request.POST.get('author_id')
+    avatar = request.FILES.get('avatar', None)
+
+    if avatar:
+        # 暂存到本地
+        file_path = save_file(avatar)
+        # 获取学者信息
+        es_res = es_get_author_by_id(author_id)
+        source = es_res['hits']['hits'][0]['_source']
+        # 删除原有头像
+        if source['avatar'] is not None:
+            delete_file(source['avatar'])
+        # 上传新头像
+        simple_id = source['id'].split('/')[-1]
+        key = simple_id + '_avatar.png'
+        ret = upload_file(key, file_path)
+        if ret:
+            # 写入es
+            update_body = {
+                "query": {
+                    "term": {
+                        "id": author_id,
+                    }
+                },
+                "script": {
+                    "source": "ctx._source.avatar = params.avatar",
+                    "params": {
+                        "avatar": key
+                    }
+                }
+            }
+            # 局部更新
+            elasticsearch_connection.update_by_query(index=AUTHOR, body=update_body)
+            # 删除本地存储的文件
+            os.remove(file_path)
+            return response(SUCCESS, '上传头像成功！')
+        else:
+            os.remove(file_path)
+            return response(FILE_ERROR, '上传头像失败！', error=True)
+    else:
+        return response(PARAMS_ERROR, '学者头像不能为空')

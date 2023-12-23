@@ -103,7 +103,7 @@ def get_user_avatar(request):
 
 @allowed_methods(['POST'])
 def test(request):
-    key = 'default_institution.png'
+    key = '1.png'
     url = get_file(key)
     return response(data=url)
 
@@ -646,28 +646,42 @@ def apply_for_certification(request):
     if user.scholar_identity:
         return response(PARAMS_ERROR, '用户已认证！', error=True)
     author_id = request.POST.get('author_id', None)
-    idcard_img = request.FILES.get('idcard_img', None)
-    if author_id and idcard_img:
+    idcard_img_list = request.FILES.getlist('idcard_img', None)
+    remark = request.POST.get('remark', None)
+    if author_id and idcard_img_list and remark:
         try:
             author = Author.objects.get(id=author_id)
         except Author.DoesNotExist:
             # 不存在则创建
             author = Author.objects.create(id=author_id)
+        # 如果学者已经被认证过,返回错误
+        if User.objects.filter(is_active=True, scholar_identity=author).exists():
+            return response(MYSQL_ERROR, '该学者已经被认证过', error=True)
         # 先把文件存储到本地
-        file_path = save_file(idcard_img)
-        # 使用七牛云对象存储上传图片
-        key = user.email + '_idcard.png'
-        ret = upload_file(key, file_path)
-        if ret:
-            # 删除本地存储的文件
-            os.remove(file_path)
-            # 创建认证消息
-            certification = Certification.objects.create(user=user, author=author, idcard_img_url=key)
-            certification.save()
-            return response(SUCCESS, '申请认证成功！')
-        else:
-            os.remove(file_path)
-            return response(FILE_ERROR, '上传身份证失败！', error=True)
+        dic = {1: 'One', 2: 'Two', 3: 'Three', 4: 'Four'}
+        keys = ['' for _ in range(4)]
+        num = 1
+        for idcard_img in idcard_img_list:
+            file_path = save_file(idcard_img)
+            # 使用七牛云对象存储上传图片
+            key = user.email + '_idcard_img' + dic[num] + '.png'
+            keys[num - 1] = key
+            ret = upload_file(key, file_path)
+            if ret:
+                # 删除本地存储的文件
+                os.remove(file_path)
+            else:
+                os.remove(file_path)
+                return response(FILE_ERROR, '上传身份证失败！', error=True)
+            num += 1
+        # 创建认证消息
+        certification = Certification.objects.create(user=user, author=author, content=remark,
+                                                     idcard_img_urlOne=keys[0],
+                                                     idcard_img_urlTwo=keys[1],
+                                                     idcard_img_urlThree=keys[2],
+                                                     idcard_img_urlFour=keys[3])
+        certification.save()
+        return response(SUCCESS, '申请认证成功！')
     else:
         return response(PARAMS_ERROR, '字段不可为空', error=True)
 
@@ -729,3 +743,25 @@ def get_messages_all(request):
     messages = user.msg.all()
     data = [message.to_string() for message in messages]
     return response(SUCCESS, '获取全部站内信成功！', data=data)
+
+
+def check_author_authentication(request):
+    """
+    查看学者是否已经认证过
+    :param request: author_id
+    :return: 认证过为True,否则False
+    """
+    author_id = request.GET.get('author_id', None)
+    if author_id:
+        try:
+            author = Author.objects.get(id=author_id)
+        except Author.DoesNotExist:
+            author = Author.objects.create(id=author_id)
+            author.save()
+        if User.objects.filter(is_active=True, scholar_identity=author).exists():
+            data = True
+        else:
+            data = False
+        return response('获取学者认证状态成功', data=data)
+    else:
+        return response('字段不能为空', error=True)
