@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- coding:utf-8 -*-
 
 # This code shows an example of text translation from English to Simplified-Chinese.
 # This code runs on Python 2.7.x and Python 3.x.
@@ -37,10 +37,10 @@ def translate(query):
 
     # Send request
     r = requests.post(url, params=payload, headers=headers)
-    raw_result = r.json()['trans_result']
+    raw_json=r.json()
+    print(raw_json)
+    raw_result = raw_json['trans_result']
     print(raw_result)
     result = [item['dst'] for item in raw_result]
-
-
     return result
 

@@ -29,13 +29,16 @@ def get_level_0(request):
     # 添加过滤条件
     s = s.filter("term", level=0)
 
-    s = s.source(['id', 'display_name', 'chinese_display_name'])
+    s = s.source(['id', 'display_name', 'chinese_display_name','level'])
+
+    s = s[0:100]  # 获取前100个结果
     # 执行搜索
     response = s.execute()
 
     response = response.to_dict()['hits']['hits']
 
     results = []
+
     for hit in response:
         source_data = hit['_source']
         results.append(source_data)
@@ -219,6 +222,9 @@ def get_concept_by_id(request):
         if 'chinese_display_name' not in source_data or source_data['chinese_display_name'] == '':
             to_translate.append(source_data['display_name'])
             translate_mapping.append((source_data, 'chinese_display_name'))
+        if 'chinese_description' not in source_data or source_data['chinese_description'] == '':
+            to_translate.append(source_data['description'])
+            translate_mapping.append((source_data, 'chinese_description'))
 
         for field in ['ancestors', 'related_concepts']:
             if field in source_data:
