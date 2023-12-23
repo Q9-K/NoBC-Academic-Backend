@@ -12,5 +12,7 @@ urlpatterns = [
     path('check_complaint/', check_complaint),
     path('get_certification_detail/', get_certification_detail),
     path('get_complaint_detail/', get_complaint_detail),
+    path('get_user_info_by_email/',get_user_info_by_email),
+    path('get_user_avatar_by_email/', get_user_avatar_by_email)
 
 ]
