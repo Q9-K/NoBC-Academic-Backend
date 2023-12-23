@@ -1,7 +1,10 @@
 from datetime import datetime
 
+from elasticsearch_dsl import Search
+from elasticsearch_dsl.connections import connections
+
 from NoBC.status_code import *
-from author.models import Author
+from config import ELAS_USER, ELAS_PASSWORD, ELAS_HOST
 from manager.models import Manager
 from message.models import Certification, Complaint, Message
 from user.models import User
@@ -10,8 +13,11 @@ from utils.Token import generate_token
 from utils.qos import get_file
 from utils.view_decorator import allowed_methods, manager_login_required
 
-
 # Create your views here.
+
+ES_NAME = 'author'
+ES_CONN = connections.create_connection(hosts=[ELAS_HOST], http_auth=(ELAS_USER, ELAS_PASSWORD), timeout=20)
+
 
 def login(request):
     """
@@ -45,7 +51,11 @@ def get_certifications_pending(request):
     :return: [code, msg, data, error] data为需要审核的认证列表
     """
     certifications = Certification.objects.filter(status=Certification.PENDING)
-    data = [certification.to_string() for certification in certifications]
+    data = []
+    for certification in certifications:
+        dic = certification.to_string()
+        dic['author_name'] = get_author_name(certification.author_id)
+        data.append(dic)
     return response(SUCCESS, '获取需要审核的认证记录成功！', data=data)
 
 
@@ -58,8 +68,30 @@ def get_certifications_all(request):
     :return: [code, msg, data, error] data为所有的认证列表
     """
     certifications = Certification.objects.all()
-    data = [certification.to_string() for certification in certifications]
+    data = []
+    for certification in certifications:
+        dic = certification.to_string()
+        dic['author_name'] = get_author_name(certification.author_id)
+        data.append(dic)
     return response(SUCCESS, '获取所有的认证记录成功！', data=data)
+
+
+def get_image_name(num: int) -> str:
+    """
+    获取图片名
+    :param num: 图片序号
+    :return: 图片名
+    """
+    if num == 1:
+        return 'idcard_img_urlOne'
+    elif num == 2:
+        return 'idcard_img_urlTwo'
+    elif num == 3:
+        return 'idcard_img_urlThree'
+    elif num == 4:
+        return 'idcard_img_urlFour'
+    else:
+        return ''
 
 
 @allowed_methods(['GET'])
@@ -75,12 +107,13 @@ def get_certification_detail(request):
         try:
             certification = Certification.objects.get(id=certification_id)
             data = certification.to_string()
-            idcard_img_url = certification.idcard_img_url
-            ret = get_file(idcard_img_url)
-            if ret:
-                data['idcard_img'] = ret
-            else:
-                return response(MYSQL_ERROR, '获取认证详情失败！', error=True)
+            data['author_name'] = get_author_name(certification.author_id)
+            for i in range(1, 5):
+                image_name = get_image_name(i)
+                if image_name != '':
+                    data[image_name] = get_file(data[image_name])
+                else:
+                    data[image_name] = ''
             return response(SUCCESS, '获取认证详情成功！', data=data)
         except Certification.DoesNotExist:
             return response(MYSQL_ERROR, '不存在此认证记录！', error=True)
@@ -97,7 +130,11 @@ def get_complaints_pending(request):
     :return: [code, msg, data, error] data为需要审核的投诉列表
     """
     complaints = Complaint.objects.filter(status=Complaint.PENDING)
-    data = [complaint.to_string() for complaint in complaints]
+    data = []
+    for complaint in complaints:
+        dic = complaint.to_string()
+        dic['author_name'] = get_author_name(complaint.to_author_id)
+        data.append(dic)
     return response(SUCCESS, '获取需要审核的投诉记录成功！', data=data)
 
 
@@ -110,7 +147,11 @@ def get_complaints_all(request):
     :return: [code, msg, data, error] data为需要审核的投诉列表
     """
     complaints = Complaint.objects.all()
-    data = [complaint.to_string() for complaint in complaints]
+    data = []
+    for complaint in complaints:
+        dic = complaint.to_string()
+        dic['author_name'] = get_author_name(complaint.to_author_id)
+        data.append(dic)
     return response(SUCCESS, '获取全部的投诉记录成功！', data=data)
 
 
@@ -216,6 +257,7 @@ def get_complaint_detail(request):
         try:
             complaint = Complaint.objects.get(id=complaint_id)
             data = complaint.to_string()
+            data['author_name'] = get_author_name(complaint.to_author_id)
             return response(SUCCESS, '获取投诉详情成功！', data=data)
         except Complaint.DoesNotExist:
             return response(MYSQL_ERROR, '不存在此投诉记录！', error=True)
@@ -232,3 +274,18 @@ def create_message(title, content, to_user):
     """
     message = Message(title=title, content=content, receiver=to_user, create_time=datetime.now())
     message.save()
+
+
+def get_author_name(author_id):
+    """
+    获取学者姓名
+    :param author_id: 学者id
+    :return: 学者姓名
+    """
+    # es搜索
+    search = Search(using=ES_CONN, index=ES_NAME).query('term', id=author_id)
+    ret = search.execute().to_dict()['hits']['hits']
+    if len(ret) == 0:
+        return '未知'
+    else:
+        return ret[0]['_source']['display_name']

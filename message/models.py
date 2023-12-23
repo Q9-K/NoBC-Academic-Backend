@@ -44,17 +44,23 @@ class Certification(models.Model):
     ]
     status = models.CharField(max_length=2, choices=STATUS_IN_CHOICE, default=PENDING)
     result_msg = models.TextField(default='')
-    idcard_img_url = models.CharField(max_length=50, default='')
+    idcard_img_urlOne = models.CharField(max_length=50, default='')
+    idcard_img_urlTwo = models.CharField(max_length=50, default='')
+    idcard_img_urlThree = models.CharField(max_length=50, default='')
+    idcard_img_urlFour = models.CharField(max_length=50, default='')
     date_time = models.DateTimeField(auto_now_add=True)
 
     def to_string(self):
         return {
-            'id': self.id,
+            'user_id': self.id,
             'user': self.user.name,
-            'author': self.author.id,
+            'author_id': self.author.id,
             'status': self.get_status_display(),
             'result_msg': self.result_msg,
-            'idcard_img_url': self.idcard_img_url,
+            'idcard_img_urlOne': self.idcard_img_urlOne,
+            'idcard_img_urlTwo': self.idcard_img_urlTwo,
+            'idcard_img_urlThree': self.idcard_img_urlThree,
+            'idcard_img_urlFour': self.idcard_img_urlFour,
             'date_time': self.date_time,
             'remark': self.content
         }
