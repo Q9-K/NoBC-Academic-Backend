@@ -182,6 +182,28 @@ def get_author_by_id(request):
     })
 
 
+# 获取作者近几年数据
+@allowed_methods(['GET'])
+def get_counts_by_year(request):
+    author_id = request.GET.get('author_id')
+    es_res = es_get_author_by_id(author_id)
+
+    res = []
+    source = es_res['hits']['hits'][0]['_source']
+    for year in source['counts_by_year']:
+        res.append({
+            'type': year['year'],
+            'papers': year['works_count']
+        })
+
+    return JsonResponse({
+        'code': SUCCESS,
+        'error': False,
+        'message': 'success',
+        'data': res
+    })
+
+
 # 根据作者id列出指定作者的所有作品(1w以内)，需要分页
 @allowed_methods(['GET'])
 def get_works(request):
