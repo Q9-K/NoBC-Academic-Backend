@@ -1,6 +1,7 @@
 from django.db import models
-from user.models import User
+
 from author.models import Author
+from user.models import User
 
 
 # Create your models here.
@@ -52,8 +53,9 @@ class Certification(models.Model):
 
     def to_string(self):
         return {
-            'user_id': self.id,
+            'id': self.id,
             'user': self.user.name,
+            'user_email': self.user.email,
             'author_id': self.author.id,
             'status': self.get_status_display(),
             'result_msg': self.result_msg,
@@ -87,6 +89,7 @@ class Complaint(models.Model):
         return {
             'id': self.id,
             'user': self.user.name,
+            'user_email': self.user.email,
             'to_scholar': self.to_author.id,
             'status': self.get_status_display(),
             'result_msg': self.result_msg,

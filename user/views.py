@@ -256,6 +256,7 @@ def get_work_info(work: dict, user: User = None):
     # 拼接论文信息,需要title, author_name
     work_data = dict()
     work_data['title'] = ret['title']
+    work_data['id'] = ret['id']
     work_data['authors'] = [{'name': authorship['author']['display_name'],
                              'id': authorship['author']['id'],
                              } for authorship in ret['authorships']]
@@ -330,8 +331,12 @@ def get_author_info(author_id: str, user: User = None):
     author_data['id'] = ret['id']
     author_data['name'] = ret['display_name']
     author_data['papers'] = ret['works_count']
-    author_data['H_index'] = None
-    author_data['avatar'] = ret['avatar']
+    author_data['H_index'] = ret['summary_stats']['h_index']
+    # 头像为空则用默认的
+    if ret['avatar']:
+        author_data['avatar'] = get_file(ret['avatar'])
+    else:
+        author_data['avatar'] = get_file('default_author.png')
     author_data['englishAffiliation'] = None
     # 如果传入了user,则判断是否关注;否则默认为关注
     if user:
