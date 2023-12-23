@@ -36,7 +36,7 @@ class SourceDocument(Document):
     homepage_url = Keyword(index=False)
     host_organization = Keyword(index=False)
     host_organization_lineage = Keyword(index=False)
-    host_organization_name = Text(analyzer='ik_smart', search_analyzer='ik_smart')
+    host_organization_name = Text(analyzer='my_edge_ngram_analyzer', search_analyzer='my_edge_ngram_analyzer')
     summary_stats = Object(
         properties={
             "2yr_mean_citedness": Double(),
@@ -45,6 +45,7 @@ class SourceDocument(Document):
         }
     )
     type = Keyword()
+    created_date = Date()
     updated_date = Date()
     works_count = Integer()
     # 添加字段
@@ -52,7 +53,7 @@ class SourceDocument(Document):
         properties={
             "id": Keyword(),
             "wikidata": Keyword(),
-            "display_name": Text(),
+            "display_name": Text(analyzer='my_edge_ngram_analyzer', search_analyzer='my_edge_ngram_analyzer'),
             "level": Integer(),
             "score": Double(),
         }
@@ -64,6 +65,21 @@ class SourceDocument(Document):
         settings = {
             'number_of_shards': 5,
             'number_of_replicas': 0,
+            'analysis': {
+                'analyzer': {
+                    'my_edge_ngram_analyzer': {
+                        'type': 'custom',
+                        'tokenizer': 'my_edge_ngram_tokenizer'
+                    }
+                },
+                'tokenizer': {
+                    'my_edge_ngram_tokenizer': {
+                        'type': 'edge_ngram',
+                        'min_gram': 2,
+                        'max_gram': 10,
+                    }
+                }
+            }
         }
 
 
@@ -75,10 +91,10 @@ def run(client, file_name):
         start_time = time.perf_counter()
         for line in file:
             data = json.loads(line)
-            properties_to_extract = ["id", "cited_by_count", "counts_by_year", "display_name",
-                                     "homepage_url", "host_organization", "host_organization_lineage",
-                                     "host_organization_name", "summary_stats", "type", "societies",
-                                     "updated_date", "works_api_url", "works_count", "x_concepts", "img_url"]
+            properties_to_extract = ["id", "cited_by_count", "counts_by_year", "display_name", "homepage_url",
+                                     "host_organization", "host_organization_lineage", "host_organization_name",
+                                     "summary_stats", "type", "societies", "created_date", "updated_date",
+                                     "works_count", "x_concepts", "img_url"]
             data = {key: data.get(key) for key in properties_to_extract}
             if data.get('id'):
                 i += 1
