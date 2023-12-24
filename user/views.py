@@ -771,9 +771,9 @@ def check_author_authentication(request):
             data = True
         else:
             data = False
-        return response('获取学者认证状态成功', data=data)
+        return response(SUCCESS, '获取学者认证状态成功', data=data)
     else:
-        return response('字段不能为空', error=True)
+        return response(PARAMS_ERROR, '字段不能为空', error=True)
 
 
 @allowed_methods(['POST'])
