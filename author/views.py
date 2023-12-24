@@ -1,14 +1,18 @@
 import json
 import os
+import random
+from pprint import pprint
 
 from django.http import JsonResponse
 from author.models import Author
+from user.models import User
 from user.views import save_file
 from utils.Response import response
 from utils.qos import delete_file, upload_file, get_file
 from utils.view_decorator import allowed_methods, login_required
 from NoBC.status_code import *
 from author.es import *
+from work.views import get_citation
 
 elasticsearch_connection = connections.get_connection()
 
@@ -21,10 +25,10 @@ def get_author_by_name(request):
     author_name = request.GET.get('author_name')
     page_num = int(request.GET.get('page_num', 1))
     page_size = int(request.GET.get('page_size', 10))
-    order_by = request.GET.get('order_by')
-    institution = request.GET.get('institution')
-    h_index_up = request.GET.get('h_index_up')
-    h_index_down = request.GET.get('h_index_down')
+    order_by = request.GET.get('order_by', None)
+    institution = request.GET.get('institution', None)
+    h_index_up = request.GET.get('h_index_up', None)
+    h_index_down = request.GET.get('h_index_down', None)
 
     query_body = {
         "query": {
@@ -34,6 +38,13 @@ def get_author_by_name(request):
                         "match": {
                             "display_name": author_name
                         },
+                    },
+                    {
+                        "range": {
+                            "summary_stats.i10_index": {
+                                "gte": 100
+                            }
+                        }
                     }
                 ]
             }
@@ -43,13 +54,13 @@ def get_author_by_name(request):
     }
 
     # 添加聚合指标过滤
-    if institution != '':
+    if institution is not None and institution != '':
         query_body['query']['bool']['must'].append({
             "term": {
                 "last_known_institution.display_name": institution
             }
         })
-    if h_index_up != '' and h_index_down != '':
+    if h_index_up is not None and h_index_up != '' and h_index_down is not None and h_index_down != '':
         query_body['query']['bool']['must'].append({
             "range": {
                 "summary_stats.h_index": {
@@ -61,7 +72,7 @@ def get_author_by_name(request):
 
     res = {}
     # 点击搜索按钮/按照聚合指标过滤时，order_by为空，这时候需要对结果进行按照 institution 和 h-index 范围进行聚合
-    if order_by == '':
+    if order_by is None or order_by == '':
         # h-index 聚合用到的 range_list
         range_list = [{
             "to": 10
@@ -91,6 +102,7 @@ def get_author_by_name(request):
                 }
             }
         }
+        # print(agg_body)
         es_agg_res = elasticsearch_connection.search(index=AUTHOR, body=agg_body)
         res['institutions'] = []
         for bucket in es_agg_res['aggregations']['agg_term_institution']['buckets']:
@@ -130,7 +142,7 @@ def get_author_by_name(request):
             }
         else:
             pass
-    # print(query_body)
+    # pprint(query_body)
     es_query_res = elasticsearch_connection.search(index=AUTHOR, body=query_body)
     res['total'] = es_query_res['hits']['total']['value']
     res['authors'] = []
@@ -140,10 +152,16 @@ def get_author_by_name(request):
 
     for hit in es_query_res['hits']['hits']:
         tmp_author = hit['_source']
+        # 默认头像
         if tmp_author['avatar'] is None:
             tmp_author['avatar'] = default_author_avatar
+        # 存的是爬下来的url，直接用就行
+        elif tmp_author['avatar'].startswith('https'):
+            pass
+        # 用户上传的，需要根据文件名获取链接
         else:
             tmp_author['avatar'] = get_file(tmp_author['avatar'])
+        res['authors'].append(tmp_author)
 
     return JsonResponse({
         'code': SUCCESS,
@@ -170,7 +188,6 @@ def get_author_by_id(request):
             'phone': source['phone'],
             'fax': source['fax'],
             'email': source['email'],
-            'englishAffiliation': source['last_known_institution']['display_name'],
             # 暂时不需要 chineseAffiliation
             'chineseAffiliation': None,
             'address': source['address'],
@@ -184,9 +201,15 @@ def get_author_by_id(request):
             'language': source['language']
         }
 
+        if source['last_known_institution'] is not None:
+            res['englishAffiliation'] = source['last_known_institution']['display_name']
+        else:
+            res['englishAffiliation'] = None
+
         if res['avatar'] is None:
-            # print('avatar is None')
             res['avatar'] = get_file('default_author.png')
+        elif res['avatar'].startswith('https'):
+            pass
         else:
             res['avatar'] = get_file(res['avatar'])
     else:
@@ -206,13 +229,14 @@ def get_counts_by_year(request):
     author_id = request.GET.get('author_id')
     es_res = es_get_author_by_id(author_id)
 
-    res = []
+    res = [{
+        'type': year,
+        'papers': 0
+    } for year in range(2017, 2024)]
+
     source = es_res['hits']['hits'][0]['_source']
     for year in source['counts_by_year']:
-        res.append({
-            'type': year['year'],
-            'papers': year['works_count']
-        })
+        res[int(year['year']) - 2017]['papers'] = year['works_count']
 
     return JsonResponse({
         'code': SUCCESS,
@@ -224,18 +248,52 @@ def get_counts_by_year(request):
 
 # 根据作者id列出指定作者的所有作品(1w以内)，需要分页
 @allowed_methods(['GET'])
+@login_required
 def get_works(request):
     author_id = request.GET.get('author_id')
     page_num = int(request.GET.get('page_num', 1))
     page_size = int(request.GET.get('page_size', 10))
-    es_res = es_get_works(author_id, page_num, page_size)
+    simple_author_id = author_id.split('/')[-1]
+    es_res = es_get_works(simple_author_id, page_num, page_size)
 
     res = {
-        'total': es_res['hits']['total']['value'],
-        'works': []
+        'count': es_res['hits']['total']['value'],
+        'data': []
     }
     for hit in es_res['hits']['hits']:
-        res['works'].append(hit['_source'])
+        tmp_data = {
+            'highlight': {
+                'title': [hit['_source']['title']]
+            },
+            'other': {
+                'visit_count': hit['_source']['visit_count'],
+                'cited_by_count': hit['_source']['cited_by_count'],
+                'publication_date': hit['_source']['publication_date'],
+                'language': hit['_source']['language'],
+                'authorships': hit['_source']['authorships'],
+                'locations': hit['_source']['locations'],
+                'abstract': hit['_source']['abstract'],
+                'id': hit['_source']['id'],
+                'title': hit['_source']['title'],
+                'type': hit['_source']['type'],
+            }
+        }
+        if hit['_source']['abstract'] is not None:
+            tmp_data['highlight']['abstract'] = [hit['_source']['abstract']],
+
+        tmp_data['other']['citation'] = get_citation(hit['_source'])
+
+        # 查看用户是否收藏了该作品
+        tmp_data['other']['iscollected'] = False
+        user = request.user
+        user: User
+        favorites = user.favorite_set.all()
+        for favorite in favorites:
+            if favorite.work.id == hit['_source']['id']:
+                tmp_data['other']['iscollected'] = True
+                break
+
+        res['data'].append(tmp_data)
 
     return JsonResponse({
         'code': SUCCESS,
@@ -249,19 +307,6 @@ def get_works(request):
 @allowed_methods(['GET'])
 def get_hot_authors(request):
     concept_id = request.GET.get('concept_id')
-    # 方法一
-    # query_body = {
-    #     "query": {
-    #         "term": {
-    #             "id": concept_id
-    #         }
-    #     }
-    # }
-    # es_res = elasticsearch_connection.search(index='concept', body=query_body)
-    #
-    # res = es_res['hits']['hits'][0]['_source']['hot_authors']
-
-    # 方法二，实时算，看看速度
     query_body = {
         "query": {
             "nested": {
@@ -288,8 +333,11 @@ def get_hot_authors(request):
         tmp_author = hit['_source']
         if tmp_author['avatar'] is None:
             tmp_author['avatar'] = default_author_avatar
+        elif tmp_author['avatar'].startswith('https'):
+            pass
         else:
             tmp_author['avatar'] = get_file(tmp_author['avatar'])
+        res.append(tmp_author)
 
     return JsonResponse({
         'code': SUCCESS,
@@ -304,9 +352,10 @@ def get_hot_authors(request):
 @allowed_methods(['GET'])
 def get_co_author_list(request):
     author_id = request.GET.get('author_id')
+    # 因为work里面都去了前缀
+    simple_author_id = author_id.split('/')[-1]
     # 获取作者的所有作品(20个)，用来获取10个关联作者足够了
-    works = es_get_works(author_id)
-    print("works: ", len(works['hits']['hits']))
+    works = es_get_works(simple_author_id)
 
     # 已经找到的关联作者id
     res_id = []
@@ -323,7 +372,7 @@ def get_co_author_list(request):
         author_ships = work['_source']['authorships']
         for author_ship in author_ships:
             # 如果作者id不是当前作者id，且作者id不在已经找到的关联作者id列表中
-            if author_ship['author']['id'] != author_id and author_ship['author']['id'] not in res_id:
+            if author_ship['author']['id'] != simple_author_id and author_ship['author']['id'] not in res_id:
                 res_id.append(author_ship['author']['id'])
                 tmp_dic = {'name': author_ship['author']['display_name']}
                 if len(author_ship['institutions']) > 0:
@@ -331,11 +380,14 @@ def get_co_author_list(request):
                 else:
                     tmp_dic['organization'] = None
 
-                tmp_author = es_get_author_by_id(author_ship['author']['id'])
+                # 记得带上前缀
+                tmp_author = es_get_author_by_id(prefix + author_ship['author']['id'])
                 # 这里应该是都能搜得到的，除非数据导入不完整
                 tmp_author_source = tmp_author['hits']['hits'][0]['_source']
                 if tmp_author_source['avatar'] is None:
                     tmp_dic['avatar'] = default_author_avatar
+                elif tmp_author_source['avatar'].startswith('https'):
+                    tmp_dic['avatar'] = tmp_author_source['avatar']
                 else:
                     tmp_dic['avatar'] = get_file(tmp_author_source['avatar'])
                 tmp_dic['paperCount'] = tmp_author_source['works_count']
@@ -349,8 +401,7 @@ def get_co_author_list(request):
         'code': SUCCESS,
         'error': False,
         'msg': 'success',
-        'data': res,
-        'works': works
+        'data': res
     })
 
 
@@ -372,11 +423,16 @@ def get_scholar_metrics(request):
     res = {
         'Papers': source['works_count'],
         'Citation': source['cited_by_count'],
-        'H-Index': source['summary_stats']['h_index']
+        'H-Index': source['summary_stats']['h_index'],
+        'i10_index': source['summary_stats']['i10_index'],
+        'oa_percent': source['summary_stats']['oa_percent'],
+        '2yr_mean_citedness': source['summary_stats']['2yr_mean_citedness'],
+        '2yr_h_index': source['summary_stats']['2yr_h_index'],
     }
 
     return JsonResponse({
         'code': SUCCESS,
+        'error': False,
         'msg': 'success',
         'data': res
     })
@@ -529,7 +585,7 @@ def post_scholar_basic_information(request):
 
 # 上传学者头像
 @allowed_methods(['POST'])
-# @login_required
+@login_required
 def post_scholar_avatar(request):
     author_id = request.POST.get('author_id')
     avatar = request.FILES.get('avatar', None)
@@ -572,3 +628,97 @@ def post_scholar_avatar(request):
             return response(FILE_ERROR, '上传头像失败！', error=True)
     else:
         return response(PARAMS_ERROR, '学者头像不能为空')
+
+
+# 获取推荐学者
+@allowed_methods(['GET'])
+@login_required
+def get_recommend_author(request):
+    user = request.user
+    user: User
+
+    res = []
+    # 获取关注领域
+    concepts = user.concept_focus.all()
+    # 获取收藏论文
+    favorites = user.favorite_set.all()
+    # 有关注领域
+    if len(concepts) > 0:
+        # 随机选取一个关注领域去推送
+        index = random.randint(0, len(concepts) - 1)
+        target_concept_id = concepts[index].id
+        query_body = {
+            "query": {
+                "nested": {
+                    "path": "x_concepts",
+                    "query": {
+                        "term": {
+                            "x_concepts.id": target_concept_id
+                        }
+                    }
+                }
+            },
+            "sort": {
+                "summary_stats.h_index": {
+                    "order": "desc"
+                }
+            }
+        }
+    # 没有关注领域，看收藏论文的领域
+    elif len(favorites) > 0:
+        index = random.randint(0, len(favorites) - 1)
+        target_work_id = favorites[index].work.id
+        # 查找这篇论文的所属领域
+        query_body = {
+            "query": {
+                "term": {
+                    "id": target_work_id
+                }
+            }
+        }
+        es_res = elasticsearch_connection.search(index=WORK, body=query_body)
+        target_concept_id = es_res['hits']['hits'][0]['_source']['concepts'][0]['id']
+        query_body = {
+            "query": {
+                "nested": {
+                    "path": "x_concepts",
+                    "query": {
+                        "term": {
+                            "x_concepts.id": target_concept_id
+                        }
+                    }
+                }
+            },
+            "sort": {
+                "summary_stats.h_index": {
+                    "order": "desc"
+                }
+            }
+        }
+    # 不分区域，直接h_index排序
+    else:
+        query_body = {
+            "query": {
+                "match_all": {}
+            },
+            "sort": {
+                "summary_stats.h_index": {
+                    "order": "desc"
+                }
+            }
+        }
+
+    es_res = elasticsearch_connection.search(index=AUTHOR, body=query_body)
+
+    default_author_avatar = get_file('default_author.png')
+    for hit in es_res['hits']['hits']:
+        tmp_author = hit['_source']
+        if tmp_author['avatar'] is None:
+            tmp_author['avatar'] = default_author_avatar
+        elif tmp_author['avatar'].startswith('https'):
+            pass
+        else:
+            tmp_author['avatar'] = get_file(tmp_author['avatar'])
+        res.append(tmp_author)
+
+    return response(SUCCESS, 'success', data=res)

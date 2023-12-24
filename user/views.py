@@ -10,7 +10,7 @@ from NoBC.status_code import *
 from author.models import Author
 from concept.models import Concept
 from config import BUAA_MAIL_USER, ELAS_HOST, ELAS_USER, ELAS_PASSWORD
-from message.models import Certification, Complaint
+from message.models import Certification, Complaint, Message
 from utils.Md5 import create_md5, create_salt
 from utils.Response import response
 from utils.Token import generate_token
@@ -18,6 +18,7 @@ from utils.generate_avatar import render_identicon
 from utils.qos import upload_file, get_file, delete_file
 from utils.view_decorator import login_required, allowed_methods
 from work.models import Work
+from work.views import get_citation
 from .models import User, History, Favorite
 
 ES_CONN = connections.create_connection(hosts=[ELAS_HOST], http_auth=(ELAS_USER, ELAS_PASSWORD), timeout=20)
@@ -103,9 +104,11 @@ def get_user_avatar(request):
 
 @allowed_methods(['POST'])
 def test(request):
-    key = '1.png'
-    url = get_file(key)
-    return response(data=url)
+    user = User.objects.get(email='326855092@qq.com')
+    key = init_user_avatar(user)
+    user.avatar_key = key
+    user.save()
+    return response(data=None)
 
 
 def send_email(email) -> int:
@@ -251,9 +254,11 @@ def get_work_info(work: dict, user: User = None):
     if len(ret) == 0:
         return None
     ret = ret[0]['_source']
-    # 拼接论文信息,需要title, author_name
+    # 拼接论文信息,需要title, author_name, citation
     work_data = dict()
     work_data['title'] = ret['title']
+    work_data['id'] = ret['id']
+    work_data['citation'] = get_citation(ret)
     work_data['authors'] = [{'name': authorship['author']['display_name'],
                              'id': authorship['author']['id'],
                              } for authorship in ret['authorships']]
@@ -328,8 +333,12 @@ def get_author_info(author_id: str, user: User = None):
     author_data['id'] = ret['id']
     author_data['name'] = ret['display_name']
     author_data['papers'] = ret['works_count']
-    author_data['H_index'] = None
-    author_data['avatar'] = ret['avatar']
+    author_data['H_index'] = ret['summary_stats']['h_index']
+    # 头像为空则用默认的
+    if ret['avatar']:
+        author_data['avatar'] = get_file(ret['avatar'])
+    else:
+        author_data['avatar'] = get_file('default_author.png')
     author_data['englishAffiliation'] = None
     # 如果传入了user,则判断是否关注;否则默认为关注
     if user:
@@ -762,6 +771,24 @@ def check_author_authentication(request):
             data = True
         else:
             data = False
-        return response('获取学者认证状态成功', data=data)
+        return response(SUCCESS, '获取学者认证状态成功', data=data)
     else:
-        return response('字段不能为空', error=True)
+        return response(PARAMS_ERROR, '字段不能为空', error=True)
+
+
+@allowed_methods(['POST'])
+@login_required
+def read_message(request):
+    user = request.user
+    message_id = request.POST.get('message_id', None)
+    if message_id:
+        # 将消息改为已读
+        try:
+            message = Message.objects.get(id=message_id, status=Message.UNREAD)
+            message.status = Message.READ
+            message.save()
+            return response(SUCCESS, '消息已读')
+        except Message.DoesNotExist:
+            return response(MYSQL_ERROR, '消息已读或不存在', error=True)
+    else:
+        return response(PARAMS_ERROR, '字段不能为空', error=True)
