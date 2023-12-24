@@ -1,4 +1,5 @@
 import heapq
+import random
 
 from celery import shared_task
 from django.core.cache import cache
@@ -8,7 +9,7 @@ from elasticsearch_dsl import Search, Q
 from elasticsearch_dsl.connections import connections
 
 from concept.models import Concept
-from user.models import User
+from user.models import User, History
 from NoBC.status_code import *
 from utils.generate_image import generate_image
 from utils.view_decorator import allowed_methods, login_required
@@ -382,29 +383,112 @@ def search_works_by_concept(request):
 def get_works_with_followed_concepts(request):
     user = request.user
     user: User
-    concept_foucus = user.concept_focus.all()
-    results=[]
-    for concept in concept_foucus:
-        concept: Concept
-        print(concept.id)
-        # 构建查询
-        query = {
-            "query": {
-                "nested": {
-                    "path": "concepts",
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"term": {"id": id}}
-                            ]
+    concept_focus = user.concept_focus.all()
+    results = []
+    query = {}
+
+    if len(concept_focus) > 0:
+        # 收集每个概念的论文
+        for concept in concept_focus:
+            concept: Concept
+            id = concept.id.split('/')[-1]
+
+            # 构建查询
+            query = {
+                "query": {
+                    "nested": {
+                        "path": "concepts",
+                        "query": {
+                            "bool": {
+                                "must": [
+                                    {"match": {"concepts.id": id}}
+                                ]
+                            }
                         }
                     }
-                }
+                },
+                "_source": ["abstract", "title", "visit_count", "cited_by_count",
+                         "publication_date", "language", "authorships",
+                         "locations", "id", "type", "citation"],
+                "sort": [
+                    {
+                        "cited_by_count": {
+                            "order": "desc"
+                        }
+                    }
+                ],
+                "size": 100  # 每个概念获取 100 篇论文
             }
-        }
-        # 执行搜索
-        response = client.search(index="work", body=query)
+    else:
+        recent_histories = History.objects.filter(user=user).order_by('-date_time')[:8]
+        if len(recent_histories) > 0:
+            # 获取论文 ID
+            work_ids = [history.work.id for history in recent_histories]
 
-    # 处理结果
-    results = [hit["_source"] for hit in response['hits']['hits']]
+            # 获取相关论文的 concepts ID
+            concept_ids = set()
+            for work_id in work_ids:
+                query = {
+                    "query": {
+                        "match": {
+                            "id": work_id
+                        }
+                    },
+                    "_source": ["concepts.id"]
+                }
+                response = client.search(index="work", body=query)
+                for hit in response['hits']['hits']:
+                    concepts = hit["_source"].get("concepts", [])
+                    for concept in concepts:
+                        concept_ids.add(concept["id"])
+
+            # 对每个 concept ID 进行搜索
+            for concept_id in concept_ids:
+                query = {
+                    "query": {
+                        "nested": {
+                            "path": "concepts",
+                            "query": {
+                                "bool": {
+                                    "must": [
+                                        {"match": {"concepts.id": concept_id}}
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "_source": ["abstract", "title", "visit_count", "cited_by_count",
+                                "publication_date", "language", "authorships",
+                                "locations", "id", "type", "citation"],
+                    "sort": [{"cited_by_count": {"order": "desc"}}],
+                    "size": 100  # 获取 100 篇论文
+                }
+        else:
+            # 获取最热门的 100 篇论文
+            query = {
+                "query": {
+                    "match_all": {}
+                },
+                "_source": ["abstract", "title", "visit_count", "cited_by_count",
+                            "publication_date", "language", "authorships",
+                            "locations", "id", "type", "citation"],
+                "sort": [{"cited_by_count": {"order": "desc"}}],
+                "size": 100  # 获取 100 篇论文
+            }
+
+    # 执行搜索
+    response = client.search(index="work", body=query)
+    # 将结果添加到 results 列表
+    for hit in response['hits']['hits']:
+        source = hit["_source"]
+        # 构造 highlight 和 other 数据结构
+        result_item = {
+            "highlight": {
+                    "abstract": [source.get("abstract", "")],
+                    "title": [source.get("title", "")]
+                },
+                "other": source
+            }
+        results.append(result_item)
+    results = random.sample(results, 10)
     return JsonResponse(results, safe=False)
