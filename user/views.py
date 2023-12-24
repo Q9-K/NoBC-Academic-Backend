@@ -18,6 +18,7 @@ from utils.generate_avatar import render_identicon
 from utils.qos import upload_file, get_file, delete_file
 from utils.view_decorator import login_required, allowed_methods
 from work.models import Work
+from work.views import get_citation
 from .models import User, History, Favorite
 
 ES_CONN = connections.create_connection(hosts=[ELAS_HOST], http_auth=(ELAS_USER, ELAS_PASSWORD), timeout=20)
@@ -253,10 +254,11 @@ def get_work_info(work: dict, user: User = None):
     if len(ret) == 0:
         return None
     ret = ret[0]['_source']
-    # 拼接论文信息,需要title, author_name
+    # 拼接论文信息,需要title, author_name, citation
     work_data = dict()
     work_data['title'] = ret['title']
     work_data['id'] = ret['id']
+    work_data['citation'] = get_citation(ret)
     work_data['authors'] = [{'name': authorship['author']['display_name'],
                              'id': authorship['author']['id'],
                              } for authorship in ret['authorships']]
