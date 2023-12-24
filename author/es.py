@@ -7,7 +7,9 @@ AUTHOR = 'author'
 CONCEPT = 'concept'
 INSTITUTION = 'institution'
 SOURCE = 'source'
-WORK = 'work_final'
+WORK = 'work_optimized'
+
+prefix = "https://openalex.org/"
 
 
 # 根据id获取作者的所有作品，不分页就获取全部

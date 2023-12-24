@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from elasticsearch_dsl import Search
 from elasticsearch_dsl.connections import connections
 
@@ -224,12 +226,14 @@ def check_certification(request):
                 title = '你的学者认证已通过'
                 content = '你的学者认证已通过，原因：' + opinion
                 create_message(title, content, certification.user)
+                send_message(certification.user.email, '你的学者认证已通过')
             elif status_code == '2':
                 certification.status = Certification.REJECTED
                 # 给该用户发消息
                 title = '你的学者认证未通过'
                 content = '你的学者认证未通过，原因：' + opinion
                 create_message(title, content, certification.user)
+                send_message(certification.user.email, '你的学者认证未通过')
             else:
                 return response(PARAMS_ERROR, 'status错误！', error=True)
             certification.result_msg = opinion
@@ -272,10 +276,12 @@ def check_complaint(request):
                 title = '你的学者认证已被取消'
                 content = '你的学者认证已被取消，原因：' + opinion
                 create_message(title, content, to_user)
+                send_message(to_user.email, '你的学者认证已被取消')
                 # 给投诉者发消息
                 title = '你的投诉已通过'
                 content = '你的投诉已通过，原因：' + opinion
                 create_message(title, content, complaint.user)
+                send_message(complaint.user.email, '你的投诉已通过')
             elif status_code == '2':
                 complaint.status = Complaint.REJECTED
                 # 给投诉者发消息
@@ -391,3 +397,23 @@ def get_user_avatar_by_email(request):
             return response(MYSQL_ERROR, '用户不存在', error=True)
     else:
         return response(PARAMS_ERROR, '字段不能为空', error=True)
+
+
+def send_message(user_email: str, message: str):
+    """
+    websocket 示例
+    """
+    # 截取数字
+    user_email_prefix = user_email.split('@')[0]
+    channel_layer = get_channel_layer()
+    room_name = f'user_{user_email_prefix}'
+
+    # 异步方式发送消息
+    async_to_sync(channel_layer.group_send)(
+        room_name,
+        {
+            'type': 'send_message',
+            'message': message
+        }
+    )
+    return response('发送成功', data=message)

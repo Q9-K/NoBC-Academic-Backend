@@ -9,4 +9,5 @@ urlpatterns = [
     path('get_popular_field/', get_hot_concepts),
     path('get_works_by_id/', search_works_by_concept),
     path('get_ancestors_by_id/',get_ancestor_concepts),
+    path('get_works_by_focused_concept/', get_works_with_followed_concepts),
 ]

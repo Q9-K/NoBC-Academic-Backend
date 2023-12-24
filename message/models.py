@@ -14,8 +14,8 @@ class Message(models.Model):
     READ = 'RD'
     UNREAD = 'UR'
     STATUS_IN_CHOICE = [
-        (READ, 'read'),
-        (UNREAD, 'unread')
+        (READ, '已读'),
+        (UNREAD, '未读')
     ]
     status = models.CharField(max_length=2, choices=STATUS_IN_CHOICE, default=UNREAD)
 
@@ -25,7 +25,8 @@ class Message(models.Model):
             'title': self.title,
             'content': self.content,
             'receiver': self.receiver.name,
-            'create_time': self.create_time
+            'create_time': self.create_time,
+            'status': self.get_status_display()
         }
 
 

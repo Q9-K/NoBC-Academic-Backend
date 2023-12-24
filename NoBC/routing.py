@@ -6,7 +6,7 @@ from django.urls import path
 from user import consumers
 
 websocket_urlpatterns = [
-    path('<int:user_id>/notice', consumers.ChatConsumer.as_asgi()),
+    path('<str:user_email>/message', consumers.ChatConsumer.as_asgi()),
 
 ]
 
