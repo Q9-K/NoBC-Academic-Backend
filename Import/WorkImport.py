@@ -227,7 +227,7 @@ def run(file_name):
     actions = generate_actions(file_name)
     deque(parallel_bulk(client=client, actions=actions,
                         thread_count=8, queue_size=8,
-                        chunk_size=1000, request_timeout=60
+                        chunk_size=500, request_timeout=60
                         ), maxlen=0)
     save_imported_files(file_name)
 
