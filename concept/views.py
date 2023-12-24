@@ -417,7 +417,7 @@ def get_works_with_followed_concepts(request):
                         }
                     }
                 ],
-                "size": 100  # 每个概念获取 100 篇论文
+                "size": 50  # 每个概念获取 100 篇论文
             }
     else:
         recent_histories = History.objects.filter(user=user).order_by('-date_time')[:8]
@@ -461,7 +461,7 @@ def get_works_with_followed_concepts(request):
                                 "publication_date", "language", "authorships",
                                 "locations", "id", "type", "citation"],
                     "sort": [{"cited_by_count": {"order": "desc"}}],
-                    "size": 100  # 获取 100 篇论文
+                    "size": 50  # 获取 100 篇论文
                 }
         else:
             # 获取最热门的 100 篇论文
