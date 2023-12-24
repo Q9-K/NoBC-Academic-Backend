@@ -1,6 +1,7 @@
 import json
 import os
 import random
+from pprint import pprint
 
 from django.http import JsonResponse
 from author.models import Author
@@ -37,6 +38,13 @@ def get_author_by_name(request):
                         "match": {
                             "display_name": author_name
                         },
+                    },
+                    {
+                        "range": {
+                            "summary_stats.i10_index": {
+                                "gte": 100
+                            }
+                        }
                     }
                 ]
             }
@@ -64,7 +72,7 @@ def get_author_by_name(request):
 
     res = {}
     # 点击搜索按钮/按照聚合指标过滤时，order_by为空，这时候需要对结果进行按照 institution 和 h-index 范围进行聚合
-    if order_by is not None or order_by != '':
+    if order_by is None or order_by == '':
         # h-index 聚合用到的 range_list
         range_list = [{
             "to": 10
@@ -94,6 +102,7 @@ def get_author_by_name(request):
                 }
             }
         }
+        # print(agg_body)
         es_agg_res = elasticsearch_connection.search(index=AUTHOR, body=agg_body)
         res['institutions'] = []
         for bucket in es_agg_res['aggregations']['agg_term_institution']['buckets']:
@@ -133,7 +142,7 @@ def get_author_by_name(request):
             }
         else:
             pass
-    # print(query_body)
+    # pprint(query_body)
     es_query_res = elasticsearch_connection.search(index=AUTHOR, body=query_body)
     res['total'] = es_query_res['hits']['total']['value']
     res['authors'] = []
@@ -143,8 +152,13 @@ def get_author_by_name(request):
 
     for hit in es_query_res['hits']['hits']:
         tmp_author = hit['_source']
+        # 默认头像
         if tmp_author['avatar'] is None:
             tmp_author['avatar'] = default_author_avatar
+        # 存的是爬下来的url，直接用就行
+        elif tmp_author['avatar'].startswith('https'):
+            pass
+        # 用户上传的，需要根据文件名获取链接
         else:
             tmp_author['avatar'] = get_file(tmp_author['avatar'])
         res['authors'].append(tmp_author)
@@ -193,8 +207,9 @@ def get_author_by_id(request):
             res['englishAffiliation'] = None
 
         if res['avatar'] is None:
-            # print('avatar is None')
             res['avatar'] = get_file('default_author.png')
+        elif res['avatar'].startswith('https'):
+            pass
         else:
             res['avatar'] = get_file(res['avatar'])
     else:
@@ -233,6 +248,7 @@ def get_counts_by_year(request):
 
 # 根据作者id列出指定作者的所有作品(1w以内)，需要分页
 @allowed_methods(['GET'])
+@login_required
 def get_works(request):
     author_id = request.GET.get('author_id')
     page_num = int(request.GET.get('page_num', 1))
@@ -266,6 +282,16 @@ def get_works(request):
             tmp_data['highlight']['abstract'] = [hit['_source']['abstract']],
 
         tmp_data['other']['citation'] = get_citation(hit['_source'])
+
+        # 查看用户是否收藏了该作品
+        tmp_data['other']['iscollected'] = False
+        user = request.user
+        user: User
+        favorites = user.favorite_set.all()
+        for favorite in favorites:
+            if favorite.work.id == hit['_source']['id']:
+                tmp_data['other']['iscollected'] = True
+                break
 
         res['data'].append(tmp_data)
 
@@ -307,6 +333,8 @@ def get_hot_authors(request):
         tmp_author = hit['_source']
         if tmp_author['avatar'] is None:
             tmp_author['avatar'] = default_author_avatar
+        elif tmp_author['avatar'].startswith('https'):
+            pass
         else:
             tmp_author['avatar'] = get_file(tmp_author['avatar'])
         res.append(tmp_author)
@@ -358,6 +386,8 @@ def get_co_author_list(request):
                 tmp_author_source = tmp_author['hits']['hits'][0]['_source']
                 if tmp_author_source['avatar'] is None:
                     tmp_dic['avatar'] = default_author_avatar
+                elif tmp_author_source['avatar'].startswith('https'):
+                    tmp_dic['avatar'] = tmp_author_source['avatar']
                 else:
                     tmp_dic['avatar'] = get_file(tmp_author_source['avatar'])
                 tmp_dic['paperCount'] = tmp_author_source['works_count']
@@ -615,7 +645,7 @@ def get_recommend_author(request):
     # 有关注领域
     if len(concepts) > 0:
         # 随机选取一个关注领域去推送
-        index = random.randint(0, len(concepts))
+        index = random.randint(0, len(concepts) - 1)
         target_concept_id = concepts[index].id
         query_body = {
             "query": {
@@ -636,7 +666,7 @@ def get_recommend_author(request):
         }
     # 没有关注领域，看收藏论文的领域
     elif len(favorites) > 0:
-        index = random.randint(0, len(favorites))
+        index = random.randint(0, len(favorites) - 1)
         target_work_id = favorites[index].work.id
         # 查找这篇论文的所属领域
         query_body = {
@@ -685,6 +715,8 @@ def get_recommend_author(request):
         tmp_author = hit['_source']
         if tmp_author['avatar'] is None:
             tmp_author['avatar'] = default_author_avatar
+        elif tmp_author['avatar'].startswith('https'):
+            pass
         else:
             tmp_author['avatar'] = get_file(tmp_author['avatar'])
         res.append(tmp_author)
