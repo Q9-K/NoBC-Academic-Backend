@@ -10,7 +10,6 @@ django-elasticsearch-dsl==7.4
 django-redis==5.3.0
 elasticsearch==7.17.9
 elasticsearch-dsl==7.4.1
-googletrans==4.0.0rc1
 jsonlines==4.0.0
 langchain==0.0.349
 mysqlclient==2.2.0
