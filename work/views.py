@@ -65,16 +65,17 @@ def search(request):
              order={'_count': 'desc'}).bucket(
         'institution_info', 'top_hits', size=1
     )
-    search.aggs.bucket('locations', 'nested', path='locations').bucket(
-        'sources', 'nested', path='locations.source'
-    ).bucket('top_sources', 'terms', field='locations.source.id', size=10,
-             order={'_count': 'desc'}).bucket('source_info', 'top_hits', size=1)
+    search.aggs.bucket('locations', 'nested', path='locations').bucket('top_sources', 'terms',
+                                                                       field='locations.source.id', size=10,
+                                                                       order={'_count': 'desc'}).bucket('source_info',
+                                                                                                        'top_hits',
+                                                                                                        size=1)
     response = search.execute()
     publication_dates = response.aggregations.publication_dates.buckets[-10:]
     top_authors = response.aggregations.authors.top_authors.buckets
     top_concepts = response.aggregations.concepts.top_concepts.buckets
     top_institutions = response.aggregations.authorships.institutions.top_institutions.buckets
-    top_sources = response.aggregations.locations.sources.top_sources.buckets
+    top_sources = response.aggregations.locations.top_sources.buckets
     return JsonResponse({
         'code': SUCCESS,
         'error': False,
@@ -218,16 +219,17 @@ def advanced_search(request):
              order={'_count': 'desc'}).bucket(
         'institution_info', 'top_hits', size=1
     )
-    search.aggs.bucket('locations', 'nested', path='locations').bucket(
-        'sources', 'nested', path='locations.source'
-    ).bucket('top_sources', 'terms', field='locations.source.id', size=10,
-             order={'_count': 'desc'}).bucket('source_info', 'top_hits', size=1)
+    search.aggs.bucket('locations', 'nested', path='locations').bucket('top_sources', 'terms',
+                                                                       field='locations.source.id', size=10,
+                                                                       order={'_count': 'desc'}).bucket('source_info',
+                                                                                                        'top_hits',
+                                                                                                        size=1)
     response = search.execute()
     publication_dates = response.aggregations.publication_dates.buckets[-10:]
     top_authors = response.aggregations.authors.top_authors.buckets
     top_concepts = response.aggregations.concepts.top_concepts.buckets
     top_institutions = response.aggregations.authorships.institutions.top_institutions.buckets
-    top_sources = response.aggregations.locations.sources.top_sources.buckets
+    top_sources = response.aggregations.locations.top_sources.buckets
     return JsonResponse({
         'code': SUCCESS,
         'error': False,
