@@ -76,6 +76,9 @@ def search(request):
     top_concepts = response.aggregations.concepts.top_concepts.buckets
     top_institutions = response.aggregations.authorships.institutions.top_institutions.buckets
     top_sources = response.aggregations.locations.top_sources.buckets
+    from pprint import pprint
+    for top_source in top_sources:
+        pprint(top_source.to_dict())
     return JsonResponse({
         'code': SUCCESS,
         'error': False,
@@ -107,7 +110,7 @@ def search(request):
                 'top_concepts': [
                     {
                         'id': bucket.key,
-                        'display_name': bucket.concept_info.hits.hits[0]._source.get('display_name'),
+                        'display_name': bucket.concept_info.hits.hits[0]._source['display_name'],
                         'doc_count': bucket.doc_count,
                     }
                     for bucket in top_concepts
@@ -115,7 +118,7 @@ def search(request):
                 'top_institutions': [
                     {
                         'id': bucket.key,
-                        'display_name': bucket.institution_info.hits.hits[0]._source.get('display_name'),
+                        'display_name': bucket.institution_info.hits.hits[0]._source['display_name'],
                         'doc_count': bucket.doc_count,
                     }
                     for bucket in top_institutions
@@ -123,7 +126,7 @@ def search(request):
                 'top_sources': [
                     {
                         'id': bucket.key,
-                        'display_name': bucket.source_info.hits.hits[0]._source.get('display_name'),
+                        'display_name': bucket.source_info.hits.hits[0]._source['source']['display_name'],
                         'doc_count': bucket.doc_count,
                     }
                     for bucket in top_sources
@@ -260,7 +263,7 @@ def advanced_search(request):
                 'top_concepts': [
                     {
                         'id': bucket.key,
-                        'display_name': bucket.concept_info.hits.hits[0]._source.get('display_name'),
+                        'display_name': bucket.concept_info.hits.hits[0]._source['display_name'],
                         'doc_count': bucket.doc_count,
                     }
                     for bucket in top_concepts
@@ -268,7 +271,7 @@ def advanced_search(request):
                 'top_institutions': [
                     {
                         'id': bucket.key,
-                        'display_name': bucket.institution_info.hits.hits[0]._source.get('display_name'),
+                        'display_name': bucket.institution_info.hits.hits[0]._source['display_name'],
                         'doc_count': bucket.doc_count,
                     }
                     for bucket in top_institutions
@@ -276,7 +279,7 @@ def advanced_search(request):
                 'top_sources': [
                     {
                         'id': bucket.key,
-                        'display_name': bucket.source_info.hits.hits[0]._source.get('display_name'),
+                        'display_name': bucket.source_info.hits.hits[0]._source['source']['display_name'],
                         'doc_count': bucket.doc_count,
                     }
                     for bucket in top_sources
