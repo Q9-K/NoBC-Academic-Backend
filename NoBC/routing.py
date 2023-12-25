@@ -5,7 +5,7 @@ from django.urls import path
 from user import consumers
 
 websocket_urlpatterns = [
-    path('<str:user_email>/message', consumers.ChatConsumer.as_asgi()),
+    path('ws/<str:user_email>/message', consumers.ChatConsumer.as_asgi()),
 ]
 
 application = ProtocolTypeRouter({
