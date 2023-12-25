@@ -341,7 +341,7 @@ def get_author_info(author_id: str, user: User = None):
     author_data['H_index'] = ret['summary_stats']['h_index']
     # 头像为空则用默认的
     if ret['avatar']:
-        author_data['avatar'] = get_file(ret['avatar'])
+        author_data['avatar'] = ret['avatar']
     else:
         author_data['avatar'] = get_file('default_author.png')
     author_data['englishAffiliation'] = None
