@@ -22,4 +22,5 @@ qiniu==7.12.1
 redis==5.0.0
 requests==2.31.0
 tqdm==4.66.1
+chromadb == 0.4.21
 
