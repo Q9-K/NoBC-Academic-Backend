@@ -186,7 +186,11 @@ def active_user(request):
                     # 注册成功后直接登录,返回token
                     dic = {'email': user.email, 'name': user.name}
                     token = generate_token(dic, 60 * 60 * 24)
-                    return response(SUCCESS, '注册成功', data=token)
+                    # 返回头像url
+                    data = dict()
+                    data['token'] = token
+                    data['avatar'] = get_file(user.avatar_key)
+                    return response(SUCCESS, '注册成功', data=data)
                 else:
                     return response(PARAMS_ERROR, '验证码错误', error=True)
             except User.DoesNotExist:
@@ -219,6 +223,7 @@ def login_view(request):
                     data = dict()
                     data['token'] = token
                     data['name'] = user.name
+                    data['avatar'] = get_file(user.avatar_key)
                     return response(SUCCESS, '登录成功！', data=data)
             except User.DoesNotExist:
                 return response(MYSQL_ERROR, '用户不存在！', error=True)
