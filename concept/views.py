@@ -491,4 +491,4 @@ def get_works_with_followed_concepts(request):
             }
         results.append(result_item)
     results = random.sample(results, 10)
-    return JsonResponse(results, safe=False)
+    return JsonResponse({'code': SUCCESS, 'error':False,'message': 'no error', 'data': results})

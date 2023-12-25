@@ -7,7 +7,7 @@ AUTHOR = 'author'
 CONCEPT = 'concept'
 INSTITUTION = 'institution'
 SOURCE = 'source'
-WORK = 'work_optimized'
+WORK = 'work'
 
 prefix = "https://openalex.org/"
 

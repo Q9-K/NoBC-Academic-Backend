@@ -21,7 +21,7 @@ from work.models import Work
 from work.views import get_citation
 from .models import User, History, Favorite
 
-ES_CONN = connections.create_connection(hosts=[ELAS_HOST], http_auth=(ELAS_USER, ELAS_PASSWORD), timeout=20)
+ES_CONN = connections.get_connection()
 
 
 def init_user_avatar(user: User) -> str:
@@ -561,6 +561,7 @@ def change_user_info(request):
     position = request.POST.get('position', '')
     organization = request.POST.get('organization', '')
     subject = request.POST.get('subject', '')
+    gender = request.POST.get('gender', '')
     # 进行更新
     user = request.user
     user: User
@@ -569,6 +570,7 @@ def change_user_info(request):
     user.position = position
     user.organization = organization
     user.subject = subject
+    user.gender = gender
     user.save()
     return response(SUCCESS, '修改用户信息成功！')
 
@@ -779,7 +781,6 @@ def check_author_authentication(request):
 @allowed_methods(['POST'])
 @login_required
 def read_message(request):
-    user = request.user
     message_id = request.POST.get('message_id', None)
     if message_id:
         # 将消息改为已读

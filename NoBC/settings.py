@@ -102,7 +102,7 @@ CHANNEL_LAYERS = {
     "default": {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            "hosts": [('123.60.99.8', 6379)],
+            "hosts": [('1.94.115.67', 6379)],
         },
     },
 }
@@ -182,14 +182,21 @@ CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",
         "LOCATION": "redis://{}:6379/0".format(REDIS_HOST),
+        "KEY_PREFIX": "nobc",
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         }
     }
 }
 
-CELERY_BROKER_URL = 'amqp://rabbit:123456@localhost:5672/'
-CELERY_RESULT_BACKEND = 'redis://123.60.99.8:6379/2'
+CELERY_BROKER_URL = 'amqp://{}:{}@{}:5672/'.format(RABBITMQ_USER, RABBITMQ_PASSWORD, RABBITMQ_HOST)
+CELERY_RESULT_BACKEND = 'redis://{}:6379/1'.format(REDIS_HOST)
+CELERY_ACCEPT_CONTENT = ['application/json', ]
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TASK_ANNOTATIONS = {'tasks.add': {'rate_limit': '10/s'}}
+CELERY_TASK_TIME_LIMIT = 20
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 200
 # CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 connections.configure(
@@ -202,8 +209,8 @@ connections.configure(
     }
 )
 CELERY_BEAT_SCHEDULE = {
-    'task-update-es-every-3-seconds': {
+    'update_visit_count': {
         'task': 'work.tasks.update_es',
-        'schedule': timedelta(seconds=3),
+        'schedule': timedelta(hours=1),
     },
 }
