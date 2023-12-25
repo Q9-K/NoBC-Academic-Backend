@@ -21,7 +21,7 @@ def get_source_by_id(request):
                     "id": source_id,
                 }
             },
-            "_source": ["display_name", "cited_by_count", "counts_by_year", "works_count", "summary_stats", "x_concepts"]
+            "_source": ["display_name", "cited_by_count", "counts_by_year", "works_count", "summary_stats", "x_concepts", "created_date"]
         }
         es_res = elasticsearch_connection.search(index=SOURCE_INDEX, body=query_body)
         res = es_res['hits']['hits'][0]['_source']
@@ -458,13 +458,12 @@ def get_authors_distribution(request):
         res = []
         res.append(es_res1["aggregations"]["institutions"]["institutions_composite"]["buckets"])
         res.append(es_res2["aggregations"]["countrys"]["works_by_country"]["buckets"])
-        institutions = es_res1["aggregations"]["institutions"]["institutions_composite"]["buckets"]
 
         return JsonResponse({
             'code': SUCCESS,
             'error': False,
             'message': '查询成功',
-            'data': es_res1["aggregations"],
+            'data': res,
         })
     else:
         return JsonResponse({

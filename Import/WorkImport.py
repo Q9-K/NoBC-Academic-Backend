@@ -211,7 +211,7 @@ def generate_actions(file_name):
                 referenced_works.append(referenced_work[len('https://openalex.org/'):])
             data['referenced_works'] = referenced_works
             corresponding_institution_ids = []
-            for corresponding_institution_id in data["corresponding_institution_ids"]:
+            for corresponding_institution_id in data["corresponding_institution_ids"][0:10]:
                 corresponding_institution_id = corresponding_institution_id[len('https://openalex.org/'):]
                 corresponding_institution_ids.append(corresponding_institution_id)
             data['corresponding_institution_ids'] = corresponding_institution_ids
@@ -225,10 +225,7 @@ def generate_actions(file_name):
 
 def run(file_name):
     actions = generate_actions(file_name)
-    deque(parallel_bulk(client=client, actions=actions,
-                        thread_count=8, queue_size=20,
-                        chunk_size=1000, request_timeout=60
-                        ), maxlen=0)
+    deque(parallel_bulk(client=client, actions=actions, request_timeout=60), maxlen=0)
     save_imported_files(file_name)
 
 
