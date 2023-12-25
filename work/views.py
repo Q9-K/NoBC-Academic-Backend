@@ -10,7 +10,7 @@ from config import OPENAI_API_KEY
 from utils.view_decorator import *
 
 elasticsearch_connection = connections.get_connection()
-INDEX_NAME = 'work_optimized'
+INDEX_NAME = 'work'
 page_size = 10
 min_score_threshold = 10.0
 
@@ -165,11 +165,11 @@ def advanced_search(request):
             search = search.query(time_range_2)
 
     if source:
-        query = Q("nested", path="locations",
-                  query=Q("nested", path="locations.source",
-                          query=Q("term", locations__source__id=source)))
         # query = Q("nested", path="locations",
-        #           query=Q("match", locations__source__display_name=source))
+        #           query=Q("nested", path="locations.source",
+        #                   query=Q("term", locations__source__id=source)))
+        query = Q("nested", path="locations",
+                  query=Q("term", locations__source__id=source))
         # print(query.to_dict())
         search = search.query(query)
 
