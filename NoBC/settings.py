@@ -102,7 +102,7 @@ CHANNEL_LAYERS = {
     "default": {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            "hosts": [('127.0.0.1', 6379)],
+            "hosts": [('1.94.115.67', 6379)],
         },
     },
 }
@@ -189,8 +189,8 @@ CACHES = {
     }
 }
 
-CELERY_BROKER_URL = 'amqp://{}:{}@127.0.0.1:5672/'.format(RABBITMQ_USER, RABBITMQ_PASSWORD)
-CELERY_RESULT_BACKEND = 'redis://127.0.0.1:6379/1'
+CELERY_BROKER_URL = 'amqp://{}:{}@{}:5672/'.format(RABBITMQ_USER, RABBITMQ_PASSWORD, RABBITMQ_HOST)
+CELERY_RESULT_BACKEND = 'redis://{}:6379/1'.format(REDIS_HOST)
 CELERY_ACCEPT_CONTENT = ['application/json', ]
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
