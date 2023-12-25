@@ -8,8 +8,8 @@ import threading
 
 elasticsearch_connection = connections.get_connection()
 SOURCE_INDEX = 'source'
-WORK_INDEX = 'work_optimized'
-# WORK_INDEX = 'work'
+# WORK_INDEX = 'work_optimized'
+WORK_INDEX = 'work'
 
 
 def get_source_by_id(request):
@@ -113,14 +113,14 @@ def get_source_list(request):
         if subject and host_organization_name:
             query = (
                 Q("prefix", display_name__keyword=initial) &
-                Q("nested", path="x_concepts", query=Q("match", **{"x_concepts.display_name": subject})) &
+                Q("nested", path="x_concepts", query=Q("match", **{"x_concepts.display_name": {"query": subject, "fuzziness": "AUTO"}})) &
                 Q("match", host_organization_name=host_organization_name)
             )
             search = search.query(query)
         elif subject:
             query = (
                 Q("prefix", display_name__keyword=initial) &
-                Q("nested", path="x_concepts", query=Q("match", **{"x_concepts.display_name": subject}))
+                Q("nested", path="x_concepts", query=Q("match", **{"x_concepts.display_name": {"query": subject, "fuzziness": "AUTO"}}))
             )
             search = search.query(query)
         elif host_organization_name:
@@ -202,21 +202,50 @@ def get_latest_sources(request):
     if request.method == 'GET':
         page_num = int(request.GET.get('page_num', 1))
         page_size = int(request.GET.get('page_size', 10))
-        query_body = {
-            "query": {
-                "match_all": {}
-            },
-            "sort": [
-                {
-                    "updated_date": {
-                        "order": "desc",
+        subject = request.GET.get('subject')
+        print(subject)
+        if subject:
+            query_body = {
+                "query": {
+                    "nested": {
+                        "path": "x_concepts",
+                        "query": {
+                            "match": {
+                                "x_concepts.display_name": {
+                                    "query": "subject",
+                                    "fuzziness": "AUTO"
+                                }
+                            }
+                        }
                     }
-                }
-            ],
-            "_source": ["id", "display_name", "x_concepts", "summary_stats", "updated_date"],
-            "from": (page_num - 1) * page_size,
-            "size": page_size
-        }
+                },
+                "sort": [
+                    {
+                        "updated_date": {
+                            "order": "desc",
+                        }
+                    }
+                ],
+                "_source": ["id", "display_name", "x_concepts", "summary_stats", "updated_date"],
+                "from": (page_num - 1) * page_size,
+                "size": page_size
+            }
+        else:
+            query_body = {
+                "query": {
+                    "match_all": {}
+                },
+                "sort": [
+                    {
+                        "updated_date": {
+                            "order": "desc",
+                        }
+                    }
+                ],
+                "_source": ["id", "display_name", "x_concepts", "summary_stats", "updated_date"],
+                "from": (page_num - 1) * page_size,
+                "size": page_size
+            }
         es_res = elasticsearch_connection.search(index=SOURCE_INDEX, body=query_body)
         res = []
         for hit in es_res['hits']['hits']:
@@ -289,6 +318,7 @@ def get_authors_by_cited(request):
         source_id = id.split('/')[-1]
 
         query_body = {
+            "size": 10,
             "query": {
                 "nested": {
                     "path": "locations",
@@ -309,7 +339,7 @@ def get_authors_by_cited(request):
                     "aggs": {
                         "composite_authors": {
                             "composite": {
-                                "size": 20,
+                                "size": 10000,
                                 "sources": [
                                     {"id": {"terms": {"field": "authorships.author.id"}}},
                                     {"display_name": {"terms": {"field": "authorships.author.display_name.keyword"}}}
@@ -360,12 +390,90 @@ def get_authors_by_cited(request):
         })
 
 
+def get_institutions_by_cited(request):
+    if request.method == 'GET':
+        id = request.GET.get("source_id")
+        source_id = id.split('/')[-1]
+
+        query_body = {
+            "size": 10,
+            "query": {
+                "nested": {
+                    "path": "locations",
+                    "query": {
+                        "term": {
+                            "locations.source.id": {
+                                "value": source_id
+                            }
+                        }
+                    }
+                }
+            },
+            "aggs": {
+                "all_institutions": {
+                    "nested": {
+                        "path": "authorships.institutions"
+                    },
+                    "aggs": {
+                        "institutions_composite": {
+                            "composite": {
+                                "size": 1000,
+                                "sources": [
+                                    {"id": {"terms": {"field": "authorships.institutions.id"}}},
+                                    {"display_name": {"terms": {"field": "authorships.institutions.display_name.keyword"}}}
+                                ]
+                            },
+                            "aggs": {
+                                "reverse_nested_cited_by_count": {
+                                    "reverse_nested": {},
+                                    "aggs": {
+                                        "total_cited_by_count": {
+                                            "sum": {
+                                                "field": "cited_by_count"
+                                            }
+                                        }
+                                    }
+                                },
+                                "sorted_authors": {
+                                    "bucket_sort": {
+                                        "sort": [
+                                            {
+                                                "reverse_nested_cited_by_count>total_cited_by_count.value": {
+                                                    "order": "desc"
+                                                }
+                                            }
+                                        ],
+                                        "size": 20
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        es_res = elasticsearch_connection.search(index=WORK_INDEX, body=query_body)
+        res = es_res["aggregations"]["all_institutions"]["institutions_composite"]["buckets"]
+        return JsonResponse({
+            'code': SUCCESS,
+            'error': False,
+            'message': '查询成功',
+            'data': res,
+        })
+    else:
+        return JsonResponse({
+            'code': METHOD_ERROR,
+            'error': True,
+            'message': '请求方式错误',
+        })
+
+
 def get_authors_distribution(request):
     if request.method == 'GET':
         id = request.GET.get("source_id")
         source_id = id.split('/')[-1]
-        print(source_id)
         query_body1 = {
+            "size": 10,
             "query": {
                 "nested": {
                     "path": "locations",
@@ -403,16 +511,12 @@ def get_authors_distribution(request):
                             }
                         }
                     }
-                },
-                "total_doc_count": {
-                    "value_count": {
-                        "field": "_id"
-                    }
                 }
             }
         }
         es_res1 = elasticsearch_connection.search(index=WORK_INDEX, body=query_body1)
         query_body2 = {
+            "size": 10,
             "query": {
                 "nested": {
                     "path": "locations",
@@ -456,8 +560,28 @@ def get_authors_distribution(request):
         es_res2 = elasticsearch_connection.search(index=WORK_INDEX, body=query_body2)
 
         res = []
-        res.append(es_res1["aggregations"]["institutions"]["institutions_composite"]["buckets"])
-        res.append(es_res2["aggregations"]["countrys"]["works_by_country"]["buckets"])
+        # res.append(es_res1["aggregations"]["institutions"]["institutions_composite"]["buckets"])
+        # res.append(es_res2["aggregations"]["countrys"]["works_by_country"]["buckets"])
+        es_institution = es_res1["aggregations"]["institutions"]["institutions_composite"]["buckets"]
+        institution = []
+        others = 0
+        for i in range(20):
+            if i < 10:
+                institution.append(es_institution[i])
+            else:
+                others += es_institution[i]["doc_count"]
+        institution.append({"key": {"id": "", "display_name": "others"}, "doc_count": others})
+        res.append(institution)
+        es_country = es_res2["aggregations"]["countrys"]["works_by_country"]["buckets"]
+        country = []
+        others = 0
+        for i in range(20):
+            if i < 10:
+                country.append(es_country[i])
+            else:
+                others += es_country[i]["doc_count"]
+        country.append({"key": "others", "doc_count": others})
+        res.append(country)
 
         return JsonResponse({
             'code': SUCCESS,

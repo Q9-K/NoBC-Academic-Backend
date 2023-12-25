@@ -7,6 +7,7 @@ urlpatterns = [
     path('get_hot_sources/', get_hot_sources),
     path('get_works_by_cited/', get_works_by_cited),
     path('get_authors_by_cited/', get_authors_by_cited),
+    path('get_institutions_by_cited/', get_institutions_by_cited),
     path('get_authors_distribution/', get_authors_distribution),
     path('search_sources/', search_sources),
     path('get_latest_sources/', get_latest_sources),
