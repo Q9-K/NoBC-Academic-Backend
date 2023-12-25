@@ -211,7 +211,7 @@ def generate_actions(file_name):
                 referenced_works.append(referenced_work[len('https://openalex.org/'):])
             data['referenced_works'] = referenced_works
             corresponding_institution_ids = []
-            for corresponding_institution_id in data["corresponding_institution_ids"]:
+            for corresponding_institution_id in data["corresponding_institution_ids"][0:10]:
                 corresponding_institution_id = corresponding_institution_id[len('https://openalex.org/'):]
                 corresponding_institution_ids.append(corresponding_institution_id)
             data['corresponding_institution_ids'] = corresponding_institution_ids

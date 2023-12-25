@@ -18,7 +18,7 @@ from utils.view_decorator import allowed_methods, manager_login_required
 # Create your views here.
 
 ES_NAME = 'author'
-ES_CONN = connections.create_connection(hosts=[ELAS_HOST], http_auth=(ELAS_USER, ELAS_PASSWORD), timeout=20)
+ES_CONN = connections.get_connection()
 
 
 def login(request):

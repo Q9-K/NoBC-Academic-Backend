@@ -1,27 +1,18 @@
 # Create your views here.
-import base64
-import json
-import random
-import sys
-from pprint import pprint
-from django.http import JsonResponse
-from elasticsearch_dsl import connections, Search, UpdateByQuery
-from elasticsearch_dsl.query import Match, Term, Q, MultiMatch, Query, Range
-from NoBC.status_code import *
-from utils.view_decorator import *
-from django.core.cache import cache
-from django.views.decorators.cache import cache_page
-from config import OPENAI_API_KEY
-import requests
-from django_redis import get_redis_connection
-import numpy as np
 
-redis_conn = get_redis_connection("default")
+import numpy as np
+import requests
+from django.core.cache import cache
+from elasticsearch_dsl import connections, Search
+from elasticsearch_dsl.query import Q, MultiMatch
+
+from config import OPENAI_API_KEY
+from utils.view_decorator import *
+
 elasticsearch_connection = connections.get_connection()
 INDEX_NAME = 'work_optimized'
 page_size = 10
 min_score_threshold = 10.0
-sys.stdout.reconfigure(encoding='utf-8')
 
 
 @allowed_methods(['GET'])
@@ -49,7 +40,6 @@ def search(request):
             sort_by = 'cited_by_count'
         elif order_by == 'time':
             sort_by = 'publication_date'
-
         if order_term == 'asc':
             sort_by = '-' + sort_by
         search = search.sort(sort_by)
@@ -62,7 +52,29 @@ def search(request):
         search = search[(page_number - 1) * page_size:(page_number - 1) * page_size + page_size - 1]
     # pprint(search.to_dict())
     search = search.params(min_score=min_score_threshold)
+    search.aggs.bucket('publication_dates', 'date_histogram', field='publication_date', calendar_interval='1y')
+    search.aggs.bucket('authors', 'nested', path='authorships').bucket(
+        'top_authors', 'terms', field='authorships.author.id', size=10, order={'_count': 'desc'}  # 指定降序排序
+    ).bucket('author_info', 'top_hits', size=1)
+    search.aggs.bucket('concepts', 'nested', path='concepts').bucket(
+        'top_concepts', 'terms', field='concepts.id', size=10, order={'_count': 'desc'}
+    ).bucket('concept_info', 'top_hits', size=1)
+    search.aggs.bucket('authorships', 'nested', path='authorships').bucket(
+        'institutions', 'nested', path='authorships.institutions'
+    ).bucket('top_institutions', 'terms', field='authorships.institutions.id', size=10,
+             order={'_count': 'desc'}).bucket(
+        'institution_info', 'top_hits', size=1
+    )
+    search.aggs.bucket('locations', 'nested', path='locations').bucket(
+        'sources', 'nested', path='locations.source'
+    ).bucket('top_sources', 'terms', field='locations.source.id', size=10,
+             order={'_count': 'desc'}).bucket('source_info', 'top_hits', size=1)
     response = search.execute()
+    publication_dates = response.aggregations.publication_dates.buckets[-10:]
+    top_authors = response.aggregations.authors.top_authors.buckets
+    top_concepts = response.aggregations.concepts.top_concepts.buckets
+    top_institutions = response.aggregations.authorships.institutions.top_institutions.buckets
+    top_sources = response.aggregations.locations.sources.top_sources.buckets
     return JsonResponse({
         'code': SUCCESS,
         'error': False,
@@ -73,10 +85,49 @@ def search(request):
                 'highlight': hit.meta.highlight.to_dict(),
                 'other': {
                     **hit.to_dict(),
-                    'citation': get_citation(hit.to_dict())
+                    'citation': get_citation(hit.to_dict()),
                 }
 
-            } for hit in response]
+            } for hit in response],
+            'statistics': {
+                'docs_by_year': [{
+                    'doc_count': bucket['doc_count'],
+                    'year': bucket['key_as_string'][0:4],
+                } for bucket in publication_dates],
+                'top_authors': [
+                    {
+                        'id': bucket.key,
+                        'display_name': bucket.author_info.hits.hits[0]._source['author'][
+                            'display_name'],
+                        'doc_count': bucket.doc_count,
+                    }
+                    for bucket in top_authors
+                ],
+                'top_concepts': [
+                    {
+                        'id': bucket.key,
+                        'display_name': bucket.concept_info.hits.hits[0]._source['display_name'],
+                        'doc_count': bucket.doc_count,
+                    }
+                    for bucket in top_concepts
+                ],
+                'top_institutions': [
+                    {
+                        'id': bucket.key,
+                        'display_name': bucket.institution_info.hits.hits[0]._source['display_name'],
+                        'doc_count': bucket.doc_count,
+                    }
+                    for bucket in top_institutions
+                ],
+                'top_sources': [
+                    {
+                        'id': bucket.key,
+                        'display_name': bucket.source_info.hits.hits[0]._source['display_name'],
+                        'doc_count': bucket.doc_count,
+                    }
+                    for bucket in top_sources
+                ],
+            }
         },
     })
 
@@ -114,11 +165,11 @@ def advanced_search(request):
             search = search.query(time_range_2)
 
     if source:
-        # query = Q("nested", path="locations",
-        #           query=Q("nested", path="locations.source",
-        #                   query=Q("match", locations__source__display_name=source)))
         query = Q("nested", path="locations",
-                  query=Q("match", locations__source__display_name=source))
+                  query=Q("nested", path="locations.source",
+                          query=Q("term", locations__source__id=source)))
+        # query = Q("nested", path="locations",
+        #           query=Q("match", locations__source__display_name=source))
         # print(query.to_dict())
         search = search.query(query)
 
@@ -130,7 +181,7 @@ def advanced_search(request):
     if institution:
         query = Q("nested", path="authorships",
                   query=Q("nested", path="authorships.institutions",
-                          query=Q('match', authorships__institutions__display_name=institution)))
+                          query=Q('term', authorships__institutions__id=institution)))
         search = search.query(query)
 
     if order_by:
@@ -154,7 +205,29 @@ def advanced_search(request):
         search = search[(page_number - 1) * page_size:(page_number - 1) * page_size + page_size - 1]
     # pprint(search.to_dict())
     search = search.params(min_score=min_score_threshold)
+    search.aggs.bucket('publication_dates', 'date_histogram', field='publication_date', calendar_interval='1y')
+    search.aggs.bucket('authors', 'nested', path='authorships').bucket(
+        'top_authors', 'terms', field='authorships.author.id', size=10, order={'_count': 'desc'}  # 指定降序排序
+    ).bucket('author_info', 'top_hits', size=1)
+    search.aggs.bucket('concepts', 'nested', path='concepts').bucket(
+        'top_concepts', 'terms', field='concepts.id', size=10, order={'_count': 'desc'}
+    ).bucket('concept_info', 'top_hits', size=1)
+    search.aggs.bucket('authorships', 'nested', path='authorships').bucket(
+        'institutions', 'nested', path='authorships.institutions'
+    ).bucket('top_institutions', 'terms', field='authorships.institutions.id', size=10,
+             order={'_count': 'desc'}).bucket(
+        'institution_info', 'top_hits', size=1
+    )
+    search.aggs.bucket('locations', 'nested', path='locations').bucket(
+        'sources', 'nested', path='locations.source'
+    ).bucket('top_sources', 'terms', field='locations.source.id', size=10,
+             order={'_count': 'desc'}).bucket('source_info', 'top_hits', size=1)
     response = search.execute()
+    publication_dates = response.aggregations.publication_dates.buckets[-10:]
+    top_authors = response.aggregations.authors.top_authors.buckets
+    top_concepts = response.aggregations.concepts.top_concepts.buckets
+    top_institutions = response.aggregations.authorships.institutions.top_institutions.buckets
+    top_sources = response.aggregations.locations.sources.top_sources.buckets
     return JsonResponse({
         'code': SUCCESS,
         'error': False,
@@ -165,9 +238,48 @@ def advanced_search(request):
                 'highlight': hit.meta.highlight.to_dict(),
                 'other': {
                     **hit.to_dict(),
-                    'citation': get_citation(hit.to_dict),
+                    'citation': get_citation(hit.to_dict()),
                 }
-            } for hit in response]
+            } for hit in response],
+            'statistics': {
+                'docs_by_year': [{
+                    'doc_count': bucket['doc_count'],
+                    'year': bucket['key_as_string'][0:4],
+                } for bucket in publication_dates],
+                'top_authors': [
+                    {
+                        'id': bucket.key,
+                        'display_name': bucket.author_info.hits.hits[0]._source['author'][
+                            'display_name'],
+                        'doc_count': bucket.doc_count,
+                    }
+                    for bucket in top_authors
+                ],
+                'top_concepts': [
+                    {
+                        'id': bucket.key,
+                        'display_name': bucket.concept_info.hits.hits[0]._source['display_name'],
+                        'doc_count': bucket.doc_count,
+                    }
+                    for bucket in top_concepts
+                ],
+                'top_institutions': [
+                    {
+                        'id': bucket.key,
+                        'display_name': bucket.institution_info.hits.hits[0]._source['display_name'],
+                        'doc_count': bucket.doc_count,
+                    }
+                    for bucket in top_institutions
+                ],
+                'top_sources': [
+                    {
+                        'id': bucket.key,
+                        'display_name': bucket.source_info.hits.hits[0]._source['display_name'],
+                        'doc_count': bucket.doc_count,
+                    }
+                    for bucket in top_sources
+                ],
+            }
         },
     })
 
@@ -217,25 +329,15 @@ def get_work(request):
                 data.pop('related_works', None)
             else:
                 data = {}
-            cache.set(id, data, 60 * 60)
+            cache.set(id, data, timeout=60 * 60)
         else:
             data = cache.get(id)
-        # ip = get_client_ip(request)
-        # params = {'id': id, 'user_id': user_id, 'ip': ip}
         key = 'visit_' + id
         if cache.get(key) is None:
-            # update_by_query = UpdateByQuery(using=elasticsearch_connection, index=INDEX_NAME)
-            # update_by_query = update_by_query.filter('term', id=id)
-            # update_by_query = update_by_query.script(source="ctx._source.visit_count++", lang='painless')
-            # update_by_query.execute()
-            cache.set(key, set(user_id), 60 * 60)
+            cache.set(key, set(user_id), timeout=60 * 60)
         else:
             visit_set = cache.get(key)
             if user_id not in visit_set:
-                # update_by_query = UpdateByQuery(using=elasticsearch_connection, index=INDEX_NAME)
-                # update_by_query = update_by_query.filter('term', id=id)
-                # update_by_query = update_by_query.script(source="ctx._source.visit_count++", lang='painless')
-                # update_by_query.execute()
                 visit_set.add(user_id)
                 cache.set(key, visit_set)
         return JsonResponse({
@@ -384,12 +486,6 @@ def download_webpage(url, destination_file):
 @allowed_methods(['GET'])
 def get_quick_reply(request):
     global gpt
-    from langchain.chat_models import ChatOpenAI
-    from langchain.embeddings.openai import OpenAIEmbeddings
-    from langchain.vectorstores import Chroma
-    from langchain.text_splitter import RecursiveCharacterTextSplitter
-    from langchain.document_loaders.pdf import PyPDFLoader
-    from langchain.chains.retrieval_qa.base import RetrievalQA
     import os
     # 提示用户输入文件名，支持pdf文件和普通文本文件
     # file_path = input("input pdf path: ")
@@ -427,6 +523,6 @@ def get_citation(data):
     publication_date = data['publication_date']
     title = data['title']
     authorships = data['authorships']
-    citation = (f"{', '.join(authorship['author']['display_name'] for authorship in authorships)} "
+    citation = (f"{', '.join(authorship['author']['display_name'] for authorship in authorships[0:3])} "
                 f"({publication_date}). {title}.")
     return citation
