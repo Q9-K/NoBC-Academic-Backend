@@ -4,6 +4,7 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from elasticsearch_dsl import connections, Search, Q
 from NoBC.status_code import *
+import json
 import threading
 
 elasticsearch_connection = connections.get_connection()
@@ -43,90 +44,32 @@ def get_source_by_id(request):
 def get_source_list(request):
     if request.method == 'GET':
         initial = request.GET.get('initial')
-        subject = request.GET.get('subject')
-        host_organization_name = request.GET.get('host_organization_name')
+        #subjects = request.GET.getlist('subject', [])
+        subjects_json = request.GET.get('subject', '[]')
+        subjects = json.loads(subjects_json)
+        #host_organization_name = request.GET.get('host_organization_name')
         page_num = int(request.GET.get('page_num', 1))
         page_size = int(request.GET.get('page_size', 10))
-        """
-        query_body1 = {
-            "query": {
-                'prefix': {
-                    'display_name.keyword': initial,
-                }
-            },
-            "_source": ["id", "display_name", "x_concepts", "summary_stats"],
-            "from": (page_num - 1) * page_size,
-            "size": page_size,
-        }
-        query_body = {
-            "query": {
-                "bool": {
-                    "must": [
-                        {
-                            "prefix": {
-                                "display_name.keyword": {
-                                    "value": initial
-                                }
-                            }
-                        },
-                        {
-                            "bool": {
-                                "must": [
-                                    {
-                                        "nested": {
-                                            "path": "x_concepts",
-                                            "query": {
-                                                "bool": {
-                                                    "must": [
-                                                        {
-                                                            "match": {
-                                                                "x_concepts.display_name": subject
-                                                            }
-                                                        }
-                                                    ]
-                                                }
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        },
-                        {
-                            "match": {
-                                "host_organization_name": host_organization_name,
-                            }
-                        }
-                    ]
-                }
-            }
-        }
-        es_res = elasticsearch_connection.search(index=SOURCE_INDEX, body=query_body)
-        res = {
-            'total': es_res['hits']['total']['value'],
-            'sources': [],
-        }
-        for hit in es_res['hits']['hits']:
-            res['sources'].append(hit['_source'])
-        """
-        search = Search(using=elasticsearch_connection, index=SOURCE_INDEX)
 
-        if subject and host_organization_name:
+        search = Search(using=elasticsearch_connection, index=SOURCE_INDEX)
+        #if subjects and host_organization_name:
+        #    query = (
+        #        Q("prefix", display_name__keyword=initial) &
+        #        Q("nested", path="x_concepts", query=Q("terms", **{"x_concepts.display_name": subjects2})) &
+        #        Q("match", host_organization_name=host_organization_name)
+        #    )
+        #    search = search.query(query)
+        # print(len(subjects2))
+        # elif host_organization_name:
+        #    query = (
+        #        Q("prefix", display_name__keyword=initial) &
+        #        Q("match", host_organization_name=host_organization_name)
+        #    )
+        #    search = search.query(query)
+        if len(subjects) != 0:
             query = (
                 Q("prefix", display_name__keyword=initial) &
-                Q("nested", path="x_concepts", query=Q("match", **{"x_concepts.display_name": {"query": subject, "fuzziness": "AUTO"}})) &
-                Q("match", host_organization_name=host_organization_name)
-            )
-            search = search.query(query)
-        elif subject:
-            query = (
-                Q("prefix", display_name__keyword=initial) &
-                Q("nested", path="x_concepts", query=Q("match", **{"x_concepts.display_name": {"query": subject, "fuzziness": "AUTO"}}))
-            )
-            search = search.query(query)
-        elif host_organization_name:
-            query = (
-                Q("prefix", display_name__keyword=initial) &
-                Q("match", host_organization_name=host_organization_name)
+                Q("nested", path="x_concepts", query=Q("terms", **{"x_concepts.display_name": subjects}))
             )
             search = search.query(query)
         else:
@@ -202,19 +145,17 @@ def get_latest_sources(request):
     if request.method == 'GET':
         page_num = int(request.GET.get('page_num', 1))
         page_size = int(request.GET.get('page_size', 10))
-        subject = request.GET.get('subject')
-        print(subject)
-        if subject:
+        subjects_json = request.GET.get('subject', '[]')
+        subjects = json.loads(subjects_json)
+        # print(subjects)
+        if len(subjects) != 0:
             query_body = {
                 "query": {
                     "nested": {
                         "path": "x_concepts",
                         "query": {
-                            "match": {
-                                "x_concepts.display_name": {
-                                    "query": "subject",
-                                    "fuzziness": "AUTO"
-                                }
+                            "terms": {
+                                "x_concepts.display_name": subjects
                             }
                         }
                     }
@@ -565,7 +506,7 @@ def get_authors_distribution(request):
         es_institution = es_res1["aggregations"]["institutions"]["institutions_composite"]["buckets"]
         institution = []
         others = 0
-        for i in range(20):
+        for i in range(len(es_institution)):
             if i < 10:
                 institution.append(es_institution[i])
             else:
@@ -575,7 +516,7 @@ def get_authors_distribution(request):
         es_country = es_res2["aggregations"]["countrys"]["works_by_country"]["buckets"]
         country = []
         others = 0
-        for i in range(20):
+        for i in range(len(es_country)):
             if i < 10:
                 country.append(es_country[i])
             else:
