@@ -485,6 +485,7 @@ def get_reply(request):
 
 
 def download_webpage(url, destination_file):
+    import io
     try:
         # 发送GET请求获取网页内容
         send_headers = {
@@ -494,10 +495,11 @@ def download_webpage(url, destination_file):
         "Accept-Language": "zh-CN,zh;q=0.8"}
         response = requests.get(url, headers=send_headers)
         response.raise_for_status()  # 如果请求不成功，抛出异常
+        bytes_io = io.BytesIO(response.content) 
         # 将网页内容写入本地文件
         with open(destination_file, 'wb') as file:
             # file.truncate()
-            file.write(response.content)
+            file.write(bytes_io.getvalue())
         return ''
     except requests.exceptions.RequestException as e:
         return e
