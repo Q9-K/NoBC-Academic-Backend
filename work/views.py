@@ -449,7 +449,14 @@ def get_reply(request):
     os.environ["OPENAI_API_BASE"] = "https://api.132999.xyz/v1"
     # 根据文件类型来定义一个loader
     destination_file = "./currentPDF.pdf"
-    download_webpage(url, destination_file)
+    download_ret = download_webpage(url, destination_file)
+    if download_ret != '':
+        return JsonResponse({
+            'code': PARAMS_ERROR,
+            'error': True,
+            'message': '下载失败',
+            'data': download_ret
+        })
     loader = PyPDFLoader(destination_file)
     # 定义文本分块的规则
     splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
@@ -484,8 +491,9 @@ def download_webpage(url, destination_file):
         with open(destination_file, 'wb') as file:
             # file.truncate()
             file.write(response.content)
+        return ''
     except requests.exceptions.RequestException as e:
-        print(e)
+        return e
 
 
 @allowed_methods(['GET'])
