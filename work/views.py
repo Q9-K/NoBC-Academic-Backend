@@ -487,7 +487,12 @@ def get_reply(request):
 def download_webpage(url, destination_file):
     try:
         # 发送GET请求获取网页内容
-        response = requests.get(url)
+        send_headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36",
+        "Connection": "keep-alive",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "zh-CN,zh;q=0.8"}
+        response = requests.get(url, headers=send_headers)
         response.raise_for_status()  # 如果请求不成功，抛出异常
         # 将网页内容写入本地文件
         with open(destination_file, 'wb') as file:
