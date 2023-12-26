@@ -70,15 +70,13 @@ def search(request):
                                                                        order={'_count': 'desc'}).bucket('source_info',
                                                                                                         'top_hits',
                                                                                                         size=1)
+
     response = search.execute()
     publication_dates = response.aggregations.publication_dates.buckets[-10:]
     top_authors = response.aggregations.authors.top_authors.buckets
     top_concepts = response.aggregations.concepts.top_concepts.buckets
     top_institutions = response.aggregations.authorships.institutions.top_institutions.buckets
     top_sources = response.aggregations.locations.top_sources.buckets
-    from pprint import pprint
-    for top_source in top_sources:
-        pprint(top_source.to_dict())
     return JsonResponse({
         'code': SUCCESS,
         'error': False,
@@ -227,7 +225,9 @@ def advanced_search(request):
                                                                        order={'_count': 'desc'}).bucket('source_info',
                                                                                                         'top_hits',
                                                                                                         size=1)
+
     response = search.execute()
+
     publication_dates = response.aggregations.publication_dates.buckets[-10:]
     top_authors = response.aggregations.authors.top_authors.buckets
     top_concepts = response.aggregations.concepts.top_concepts.buckets
@@ -489,13 +489,13 @@ def download_webpage(url, destination_file):
     try:
         # 发送GET请求获取网页内容
         send_headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36",
-        "Connection": "keep-alive",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
-        "Accept-Language": "zh-CN,zh;q=0.8"}
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36",
+            "Connection": "keep-alive",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8",
+            "Accept-Language": "zh-CN,zh;q=0.8"}
         response = requests.get(url, headers=send_headers)
         response.raise_for_status()  # 如果请求不成功，抛出异常
-        bytes_io = io.BytesIO(response.content) 
+        bytes_io = io.BytesIO(response.content)
         # 将网页内容写入本地文件
         with open(destination_file, 'wb') as file:
             # file.truncate()
