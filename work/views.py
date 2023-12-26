@@ -482,7 +482,7 @@ def download_webpage(url, destination_file):
         response.raise_for_status()  # 如果请求不成功，抛出异常
         # 将网页内容写入本地文件
         with open(destination_file, 'wb') as file:
-            file.truncate()
+            # file.truncate()
             file.write(response.content)
     except requests.exceptions.RequestException as e:
         print(e)
