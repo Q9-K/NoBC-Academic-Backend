@@ -451,6 +451,8 @@ def get_reply(request):
     destination_file = "./currentPDF.pdf"
     download_ret = download_webpage(url, destination_file)
     if download_ret != '':
+        # 将错误信息转换为字符串
+        download_ret = str(download_ret)
         return JsonResponse({
             'code': PARAMS_ERROR,
             'error': True,

@@ -417,3 +417,27 @@ def send_message(user_email: str, message: str):
         }
     )
     return response('发送成功', data=message)
+
+
+def test_message(request):
+    """
+    websocket 示例
+    """
+    # 截取数字
+    user_email = request.GET.get('user_email', None)
+    if user_email:
+        user_email_prefix = user_email.split('@')[0]
+        channel_layer = get_channel_layer()
+        room_name = f'user_{user_email_prefix}'
+
+        # 异步方式发送消息
+        async_to_sync(channel_layer.group_send)(
+            room_name,
+            {
+                'type': 'send_message',
+                'message': '测试消息'
+            }
+        )
+        return response('发送成功', data='测试消息')
+    else:
+        return response(PARAMS_ERROR, '字段不能为空', error=True)
