@@ -1,9 +1,11 @@
 # Create your views here.
+import json
 
 import numpy as np
 import requests
 from django.core.cache import cache
 from elasticsearch_dsl import connections, Search
+from elasticsearch_dsl.response import Response
 from elasticsearch_dsl.query import Q, MultiMatch
 
 from config import OPENAI_API_KEY
@@ -71,12 +73,18 @@ def search(request):
                                                                                                         'top_hits',
                                                                                                         size=1)
 
-    response = search.execute()
-    publication_dates = response.aggregations.publication_dates.buckets[-10:]
-    top_authors = response.aggregations.authors.top_authors.buckets
-    top_concepts = response.aggregations.concepts.top_concepts.buckets
-    top_institutions = response.aggregations.authorships.institutions.top_institutions.buckets
-    top_sources = response.aggregations.locations.top_sources.buckets
+    key = json.dumps(search.to_dict())
+    if cache.get(key) is None:
+        response = search.execute()
+        response = response.to_dict()
+        cache.set(key, response, 60 * 60)
+    else:
+        response = cache.get(key)
+    publication_dates = response['aggregations']['publication_dates']['buckets'][-10:]
+    top_authors = response['aggregations']['authors']['top_authors']['buckets']
+    top_concepts = response['aggregations']['concepts']['top_concepts']['buckets']
+    top_institutions = response['aggregations']['authorships']['institutions']['top_institutions']['buckets']
+    top_sources = response['aggregations']['locations']['top_sources']['buckets']
     return JsonResponse({
         'code': SUCCESS,
         'error': False,
@@ -84,13 +92,12 @@ def search(request):
         'data': {
             'count': search.count(),
             'data': [{
-                'highlight': hit.meta.highlight.to_dict(),
+                'highlight': hit['highlight'],
                 'other': {
-                    **hit.to_dict(),
-                    'citation': get_citation(hit.to_dict()),
+                    **hit['_source'],
+                    'citation': get_citation(hit['_source']),
                 }
-
-            } for hit in response],
+            } for hit in response['hits']['hits']],
             'statistics': {
                 'docs_by_year': [{
                     'doc_count': bucket['doc_count'],
@@ -98,34 +105,34 @@ def search(request):
                 } for bucket in publication_dates],
                 'top_authors': [
                     {
-                        'id': bucket.key,
-                        'display_name': bucket.author_info.hits.hits[0]._source['author'][
+                        'id': bucket['key'],
+                        'display_name': bucket['author_info']['hits']['hits'][0]['_source']['author'][
                             'display_name'],
-                        'doc_count': bucket.doc_count,
+                        'doc_count': bucket['doc_count'],
                     }
                     for bucket in top_authors
                 ],
                 'top_concepts': [
                     {
-                        'id': bucket.key,
-                        'display_name': bucket.concept_info.hits.hits[0]._source['display_name'],
-                        'doc_count': bucket.doc_count,
+                        'id': bucket['key'],
+                        'display_name': bucket['concept_info']['hits']['hits'][0]['_source']['display_name'],
+                        'doc_count': bucket['doc_count'],
                     }
                     for bucket in top_concepts
                 ],
                 'top_institutions': [
                     {
-                        'id': bucket.key,
-                        'display_name': bucket.institution_info.hits.hits[0]._source['display_name'],
-                        'doc_count': bucket.doc_count,
+                        'id': bucket['key'],
+                        'display_name': bucket['institution_info']['hits']['hits'][0]['_source']['display_name'],
+                        'doc_count': bucket['doc_count'],
                     }
                     for bucket in top_institutions
                 ],
                 'top_sources': [
                     {
-                        'id': bucket.key,
-                        'display_name': bucket.source_info.hits.hits[0]._source['source']['display_name'],
-                        'doc_count': bucket.doc_count,
+                        'id': bucket['key'],
+                        'display_name': bucket['source_info']['hits']['hits'][0]['_source']['source']['display_name'],
+                        'doc_count': bucket['doc_count'],
                     }
                     for bucket in top_sources
                 ],
@@ -225,14 +232,18 @@ def advanced_search(request):
                                                                        order={'_count': 'desc'}).bucket('source_info',
                                                                                                         'top_hits',
                                                                                                         size=1)
-
-    response = search.execute()
-
-    publication_dates = response.aggregations.publication_dates.buckets[-10:]
-    top_authors = response.aggregations.authors.top_authors.buckets
-    top_concepts = response.aggregations.concepts.top_concepts.buckets
-    top_institutions = response.aggregations.authorships.institutions.top_institutions.buckets
-    top_sources = response.aggregations.locations.top_sources.buckets
+    key = json.dumps(search.to_dict())
+    if cache.get(key) is None:
+        response = search.execute()
+        response = response.to_dict()
+        cache.set(key, response, 60*60)
+    else:
+        response = cache.get(key)
+    publication_dates = response['aggregations']['publication_dates']['buckets'][-10:]
+    top_authors = response['aggregations']['authors']['top_authors']['buckets']
+    top_concepts = response['aggregations']['concepts']['top_concepts']['buckets']
+    top_institutions = response['aggregations']['authorships']['institutions']['top_institutions']['buckets']
+    top_sources = response['aggregations']['locations']['top_sources']['buckets']
     return JsonResponse({
         'code': SUCCESS,
         'error': False,
@@ -240,12 +251,12 @@ def advanced_search(request):
         'data': {
             'count': search.count(),
             'data': [{
-                'highlight': hit.meta.highlight.to_dict(),
+                'highlight': hit['highlight'],
                 'other': {
-                    **hit.to_dict(),
-                    'citation': get_citation(hit.to_dict()),
+                    **hit['_source'],
+                    'citation': get_citation(hit['_source']),
                 }
-            } for hit in response],
+            } for hit in response['hits']['hits']],
             'statistics': {
                 'docs_by_year': [{
                     'doc_count': bucket['doc_count'],
@@ -253,34 +264,34 @@ def advanced_search(request):
                 } for bucket in publication_dates],
                 'top_authors': [
                     {
-                        'id': bucket.key,
-                        'display_name': bucket.author_info.hits.hits[0]._source['author'][
+                        'id': bucket['key'],
+                        'display_name': bucket['author_info']['hits']['hits'][0]['_source']['author'][
                             'display_name'],
-                        'doc_count': bucket.doc_count,
+                        'doc_count': bucket['doc_count'],
                     }
                     for bucket in top_authors
                 ],
                 'top_concepts': [
                     {
-                        'id': bucket.key,
-                        'display_name': bucket.concept_info.hits.hits[0]._source['display_name'],
-                        'doc_count': bucket.doc_count,
+                        'id': bucket['key'],
+                        'display_name': bucket['concept_info']['hits']['hits'][0]['_source']['display_name'],
+                        'doc_count': bucket['doc_count'],
                     }
                     for bucket in top_concepts
                 ],
                 'top_institutions': [
                     {
-                        'id': bucket.key,
-                        'display_name': bucket.institution_info.hits.hits[0]._source['display_name'],
-                        'doc_count': bucket.doc_count,
+                        'id': bucket['key'],
+                        'display_name': bucket['institution_info']['hits']['hits'][0]['_source']['display_name'],
+                        'doc_count': bucket['doc_count'],
                     }
                     for bucket in top_institutions
                 ],
                 'top_sources': [
                     {
-                        'id': bucket.key,
-                        'display_name': bucket.source_info.hits.hits[0]._source['source']['display_name'],
-                        'doc_count': bucket.doc_count,
+                        'id': bucket['key'],
+                        'display_name': bucket['source_info']['hits']['hits'][0]['_source']['source']['display_name'],
+                        'doc_count': bucket['doc_count'],
                     }
                     for bucket in top_sources
                 ],
